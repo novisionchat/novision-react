@@ -1,0 +1,44 @@
+/* src/components/ReplyPreview.module.css */
+.replyPreview {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 15px;
+    background-color: var(--ui-bg-light);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85em;
+}
+.content {
+    overflow: hidden;
+    padding-right: 25px;
+    border-left: 3px solid var(--info-color);
+    padding-left: 10px;
+}
+.user {
+    display: block;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+.text {
+    display: block;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cancelBtn {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+}
+.cancelBtn:hover {
+    background-color: var(--other-message-bg);
+}

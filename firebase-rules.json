@@ -1,0 +1,75 @@
+// --- DOSYA: firebase-rules.json (GÜNCELLENMİŞ) ---
+
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        
+        "username": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "tag": { ".validate": "newData.isNumber()" },
+        "email": { ".validate": "newData.isString() && newData.val().contains('@')" },
+        "avatar": { ".validate": "newData.isString()" },
+        "status": { ".validate": "newData.isString()" },
+
+        "contacts": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" },
+        "conversations": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" },
+        "presence": { ".read": "auth != null" },
+        "groups": { ".write": "auth != null" }
+      }
+    },
+    "userSearchIndex": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['username', 'tag', 'avatar'])"
+      }
+    },
+    "dms": {
+      "$dmId": {
+        ".read": "auth != null && $dmId.contains(auth.uid)",
+        ".write": "auth != null && $dmId.contains(auth.uid)",
+        "messages": { ".indexOn": "timestamp" }
+      }
+    },
+    "groups": {
+      ".read": false,
+      "$groupId": {
+        ".read": "data.child('meta/members').child(auth.uid).exists()",
+        ".write": "data.child('meta/members').child(auth.uid).exists() || (!data.exists() && newData.child('meta/members').hasChild(auth.uid))"
+      }
+    },
+    "typing": {
+      "dm": {
+        "$dmId": {
+          ".read": "auth != null && $dmId.contains(auth.uid)",
+          "$userId": { ".write": "auth != null && $userId === auth.uid" }
+        }
+      },
+      "group": {
+        "$groupId": {
+          ".read": "auth != null && root.child('groups/' + $groupId + '/meta/members/' + auth.uid).exists()",
+          "$userId": { ".write": "auth != null && $userId === auth.uid" }
+        }
+      }
+    },
+
+    // --- YENİ EKLENEN BÖLÜM BURASI ---
+    "calls": {
+      "$uid": {
+        // Bir kullanıcı sadece kendi arama verisini okuyabilir (dinleyebilir).
+        ".read": "$uid === auth.uid",
+        // Oturum açmış herhangi bir kullanıcı, başka bir kullanıcı için arama başlatabilir (yazabilir).
+        ".write": "auth != null"
+      }
+    },
+    // --- YENİ BÖLÜM BİTİŞİ ---
+
+    "challenges": { "$uid": { ".read": "$uid === auth.uid", "$challenger_game_id": { ".write": "auth != null" } } },
+    "chess_games": {
+      ".read": "auth != null",
+      "$gameId": { ".write": "auth != null && (newData.child('players/w').val() === auth.uid || newData.child('players/b').val() === auth.uid || !data.exists())" }
+    }
+  }
+}

@@ -1,0 +1,78 @@
+/* src/components/CreateGroupModal.module.css */
+.modalOverlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); z-index: 2000; display: flex;
+    justify-content: center; align-items: center; padding: 20px;
+}
+.modalContent {
+    background: var(--ui-bg-light); padding: 25px; border-radius: 12px;
+    max-width: 450px; width: 100%; display: flex; flex-direction: column;
+    gap: 20px; position: relative; max-height: 90vh;
+}
+.modalCloseBtn {
+    position: absolute; top: 10px; right: 10px; font-size: 1.5em;
+    color: var(--text-secondary); background: none; border: none;
+    cursor: pointer; line-height: 1; padding: 5px; border-radius: 50%;
+}
+.modalCloseBtn:hover { background-color: var(--other-message-bg); }
+.modalContent h2 { margin: 0; text-align: center; }
+
+.inputSection label { font-size: 0.9em; color: var(--text-secondary); font-weight: 500; margin-bottom: 8px; display: block; }
+.inputSection input { width: 100%; padding: 12px; background: var(--other-message-bg); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; font-size: 1em; }
+
+.friendListSection h4 { font-size: 0.8em; font-weight: bold; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 10px; }
+.friendList { list-style: none; max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; }
+.friendItem { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
+.friendItem:hover { background-color: var(--other-message-bg); }
+.friendItem img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.friendItem span { flex-grow: 1; }
+.noFriends { text-align: center; color: var(--text-secondary); padding: 20px 0; }
+
+/* --- CHECKBOX İÇİN YENİ VE GÜNCELLENMİŞ STİLLER --- */
+.friendItem input[type="checkbox"] {
+    /* Orijinal checkbox'ı gizle */
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: transparent;
+    margin: 0;
+    
+    /* Özel checkbox kutusu oluştur */
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    display: grid;
+    place-content: center;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.friendItem input[type="checkbox"]::before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em var(--accent-color);
+    /* Tik işareti oluşturmak için */
+    transform-origin: bottom left;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.friendItem input[type="checkbox"]:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.friendItem input[type="checkbox"]:checked::before {
+    transform: scale(1);
+    box-shadow: inset 1em 1em var(--text-dark); /* Tik işaretinin rengi */
+}
+/* --- BİTİŞ: CHECKBOX STİLLERİ --- */
+
+
+.primaryBtn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    cursor: pointer; font-size: 1em; font-weight: bold;
+    background: var(--accent-color); color: var(--text-dark);
+}
+.primaryBtn:disabled { opacity: 0.6; cursor: not-allowed; }

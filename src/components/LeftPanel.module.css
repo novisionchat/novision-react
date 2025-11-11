@@ -1,0 +1,189 @@
+/* src/components/LeftPanel.module.css */
+.leftPanel {
+    width: 360px;
+    background-color: var(--panel-bg);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    flex-shrink: 0;
+    transition: margin-left 0.3s ease-in-out;
+}
+
+.panelHeader { 
+    display: flex; 
+    align-items: center; 
+    padding: 15px; 
+    border-bottom: 1px solid var(--border-color); 
+    flex-shrink: 0; 
+}
+
+.userProfileButton { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    cursor: pointer; 
+    flex-grow: 1; 
+    padding: 5px; 
+    border-radius: 8px; 
+    transition: background-color 0.2s; 
+    overflow: hidden; 
+}
+.userProfileButton:hover { 
+    background-color: var(--ui-bg-light); 
+}
+
+.profileAvatar { 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+}
+
+.profileUsernameTag { 
+    font-size: 1em; 
+    font-weight: 500; 
+}
+
+.panelHeaderActions { 
+    display: flex; 
+    align-items: center; 
+}
+
+.headerActionBtn { 
+    background: none; 
+    border: none; 
+    color: var(--text-secondary); 
+    cursor: pointer; 
+    padding: 8px; 
+    border-radius: 50%; 
+    transition: background-color 0.2s, color 0.2s; 
+}
+.headerActionBtn:hover { 
+    background-color: var(--ui-bg-light); 
+    color: var(--text-primary); 
+}
+
+.panelNav { 
+    display: flex; 
+    padding: 10px; 
+    border-bottom: 1px solid var(--border-color); 
+    flex-shrink: 0; 
+}
+
+.navBtn { 
+    flex: 1; 
+    padding: 10px; 
+    background: none; 
+    border: none; 
+    color: var(--text-secondary); 
+    font-size: 1em; 
+    font-weight: 500; 
+    cursor: pointer; 
+    border-bottom: 2px solid transparent; 
+    transition: all 0.2s ease; 
+}
+.navBtn.active { 
+    color: var(--text-primary); 
+    border-bottom-color: var(--accent-color); 
+}
+
+.panelContent { 
+    flex: 1; 
+    overflow-y: auto; 
+    position: relative; 
+}
+
+.panelView { 
+    display: none; 
+    padding: 15px; 
+    flex-direction: column; 
+    gap: 20px; 
+}
+.panelView.active { 
+    display: flex; 
+}
+
+.listInfoItem { 
+    color: var(--text-secondary); 
+    padding: 10px; 
+    font-size: 0.9em; 
+    text-align: center; 
+}
+
+.addFriendSection h4, .friendsListSection h4 { 
+    font-size: 0.8em; 
+    font-weight: bold; 
+    color: var(--text-secondary); 
+    letter-spacing: 0.5px; 
+    padding: 0 5px;
+    margin-bottom: 10px;
+}
+
+.addFriendActionWrapper {
+    display: flex;
+    gap: 8px;
+}
+
+.addFriendInput {
+    flex-grow: 1;
+    min-width: 0;
+    background-color: var(--ui-bg-light); 
+    border: 1px solid var(--border-color); 
+    border-radius: 6px; 
+    padding: 10px; 
+    color: var(--text-primary);
+}
+
+.addFriendBtn {
+    flex-shrink: 0;
+    padding: 10px; 
+    border: none; 
+    border-radius: 6px; 
+    font-weight: 500; 
+    cursor: pointer; 
+    background-color: var(--accent-color); 
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.channelHeader {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.backButton {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.backButton:hover {
+    background-color: var(--ui-bg-light);
+}
+
+.channelHeader h3 {
+    font-size: 1.1em;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.friendsView {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
