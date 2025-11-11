@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/ChatArea.jsx (DÜZELTİLMİŞ) ---
+// --- DOSYA: src/components/ChatArea.jsx (TAM VE NİHAİ VERSİYON) ---
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '../context/ChatContext';
@@ -214,10 +214,8 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     }
   };
 
-  // --- DEĞİŞİKLİK BURADA ---
   const handleInitiateCall = () => {
     if (activeChat.type === 'dm' && currentUser) {
-      // initiateCall'a currentUser'ı parametre olarak gönderiyoruz.
       initiateCall(activeChat.otherUserId, activeChat.name, currentUser);
     } else {
       alert("Grup aramaları yakında eklenecektir.");
