@@ -1,4 +1,4 @@
-// --- DOSYA: src/context/CallContext.jsx (TÜM DÜZELTMELER UYGULANMIŞ HALİ) ---
+// --- DOSYA: src/context/CallContext.jsx (NİHAİ VE DÜZELTİLMİŞ HALİ) ---
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
@@ -60,7 +60,7 @@ export const CallProvider = ({ children }) => {
     setCurrentVideoDeviceIndex(0);
   }, [client, call]);
 
-  // Gelen aramaları dinleyen useEffect
+  // Gelen aramaları dinleyen useEffect (DÜZELTİLMİŞ HALİ)
   useEffect(() => {
     if (!loggedInUser || !client) return;
 
@@ -68,7 +68,8 @@ export const CallProvider = ({ children }) => {
     const unsubscribe = onValue(incomingCallRef, (snapshot) => {
       if (snapshot.exists()) {
         const callData = snapshot.val();
-        if (callData.status === 'ringing' && call?.callId !== callData.callId) {
+        // --- KRİTİK DÜZELTME: Bu aramanın gerçekten bize geldiğini (arananın biz olduğunu) kontrol et ---
+        if (callData.status === 'ringing' && callData.calleeId === loggedInUser.uid && call?.callId !== callData.callId) {
           setCall(callData);
           showToast(`${callData.callerName} sizi arıyor...`, {
             persistent: true,
@@ -81,9 +82,10 @@ export const CallProvider = ({ children }) => {
       }
     });
     return () => unsubscribe();
-  }, [loggedInUser, client, call, endCall]);
+  }, [loggedInUser, client, call, acceptCall, declineCall, showToast]);
 
-  // --- DÜZELTME 2.2: Giden aramanın durumunu (reddedilme/sonlanma) dinle ---
+
+  // Giden aramanın durumunu (reddedilme/sonlanma) dinle
   useEffect(() => {
     if (!call || !loggedInUser || call.callerId !== loggedInUser.uid || viewMode === 'closed') {
         return;
@@ -154,9 +156,7 @@ export const CallProvider = ({ children }) => {
       
       if (callData.type === 'video') {
         const cameras = await AgoraRTC.getCameras();
-        if (cameras.length === 0) {
-          showToast("Kamera bulunamadı.", true);
-        }
+        if (cameras.length === 0) showToast("Kamera bulunamadı.", true);
         setVideoDevices(cameras);
         
         if (cameras.length > 0) {
@@ -187,7 +187,7 @@ export const CallProvider = ({ children }) => {
       status: 'ringing', timestamp: serverTimestamp(), type: callType
     };
     await set(ref(db, `calls/${calleeId}`), callData);
-    await set(ref(db, `calls/${user.uid}`), callData); // Arayan için de state oluşturulmalı
+    await set(ref(db, `calls/${user.uid}`), callData); // Arayan için de senkronizasyon kaydı oluştur
     setCall(callData);
     await joinChannel(callData, user);
   };
@@ -202,7 +202,6 @@ export const CallProvider = ({ children }) => {
     await joinChannel(activeCallData, user);
   };
 
-  // --- DÜZELTME 2.1: Arama reddedildiğinde yerel state'i de temizle ---
   const declineCall = async (callData) => {
     await remove(ref(db, `calls/${callData.calleeId}`));
     await remove(ref(db, `calls/${callData.callerId}`));
@@ -211,7 +210,6 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // --- DÜZELTME 1: Toggle fonksiyonlarındaki state senkronizasyon sorunu düzeltildi ---
   const toggleMic = async () => {
     if (!tracksRef.current.audio) return;
     try {
