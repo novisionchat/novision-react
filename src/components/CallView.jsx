@@ -1,6 +1,6 @@
-// --- DOSYA: src/components/CallView.jsx (DİNAMİK PENCERE BOYUTLANDIRMA) ---
+// --- DOSYA: src/components/CallView.jsx (YORUM HATASI DÜZELTİLDİ) ---
 
-import React, { useRef, useEffect, useMemo } from 'react'; // useMemo eklendi
+import React, { useRef, useEffect, useMemo } from 'react';
 import { useCall } from '../context/CallContext.jsx';
 import { useDraggable } from '../hooks/useDraggable.js';
 import styles from './CallView.module.css';
@@ -14,40 +14,51 @@ const CallView = () => {
     const { 
         call, viewMode, setViewMode, localTracks, remoteUsers, endCall, 
         toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff,
-        remoteAspectRatio // DÜZELTME: Oranı context'ten al
+        remoteAspectRatio
     } = useCall();
     
     const pipRef = useRef(null);
-    const { style: draggableStyle } = useDraggable(pipRef); // Adını değiştirelim
+    const { style: draggableStyle } = useDraggable(pipRef);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
-    useEffect(() => { /* ... aynı ... */ });
-    useEffect(() => { /* ... aynı ... */ });
-    useEffect(() => { /* ... aynı ... */ });
+    useEffect(() => {
+        if (viewMode === 'full' && pipRef.current) {
+            const updateHeight = () => {
+                const vh = window.innerHeight;
+                pipRef.current.style.setProperty('--call-height', `${vh}px`);
+            };
+            updateHeight();
+            window.addEventListener('resize', updateHeight);
+            return () => {
+                window.removeEventListener('resize', updateHeight);
+            };
+        }
+    }, [viewMode]);
 
-    // DÜZELTME: PiP penceresinin boyutunu video oranına göre hesapla
+    useEffect(() => {
+        if (localTracks.video && localVideoRef.current) {
+            localTracks.video.play(localVideoRef.current);
+        }
+    }, [localTracks.video]);
+
+    useEffect(() => {
+        const remoteUser = remoteUsers[0];
+        if (remoteUser?.videoTrack && remoteVideoRef.current) {
+            remoteUser.videoTrack.play(remoteVideoRef.current);
+        }
+    }, [remoteUsers]);
+
     const pipStyle = useMemo(() => {
         if (viewMode !== 'pip') return {};
-
         const MAX_WIDTH = 320;
         const MAX_HEIGHT = 420;
-
-        // Eğer video oranı varsa ve yataysa (genişlik > yükseklik)
         if (remoteAspectRatio && remoteAspectRatio > 1) {
-            return {
-                width: `${MAX_WIDTH}px`,
-                height: `${MAX_WIDTH / remoteAspectRatio}px`,
-            };
+            return { width: `${MAX_WIDTH}px`, height: `${MAX_WIDTH / remoteAspectRatio}px` };
         }
-        // Eğer video oranı varsa ve dikeyse
         if (remoteAspectRatio && remoteAspectRatio <= 1) {
-            return {
-                width: `${MAX_HEIGHT * remoteAspectRatio}px`,
-                height: `${MAX_HEIGHT}px`,
-            };
+            return { width: `${MAX_HEIGHT * remoteAspectRatio}px`, height: `${MAX_HEIGHT}px` };
         }
-        // Varsayılan (henüz video gelmediyse)
         return { width: '240px', height: '320px' };
     }, [viewMode, remoteAspectRatio]);
 
@@ -58,13 +69,19 @@ const CallView = () => {
     const isVideoCall = call.type === 'video';
     const containerClass = `${styles.pipContainer} ${viewMode === 'pip' ? styles.pipWindow : ''} ${viewMode === 'full' ? styles.fullWindow : ''}`;
 
-    const renderAudioCallUI = () => ( /* ... aynı ... */ );
+    // DÜZELTME: Yorum satırı yerine gerçek JSX kodu eklendi.
+    const renderAudioCallUI = () => (
+        <div className={styles.audioCallContainer}>
+            <img src="/assets/icon.png" alt="Avatar" className={styles.audioCallAvatar} />
+            <h3>{otherUserName}</h3>
+            <span>Sesli Görüşme</span>
+        </div>
+    );
 
     return (
         <div 
             ref={pipRef} 
             className={containerClass} 
-            // DÜZELTME: Sürükleme stili ile boyut stilini birleştir
             style={viewMode === 'pip' ? { ...draggableStyle, ...pipStyle } : {}}
         >
             <div className={styles.pipHeader} data-drag-handle>

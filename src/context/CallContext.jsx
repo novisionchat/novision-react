@@ -1,4 +1,4 @@
-// --- DOSYA: src/context/CallContext.jsx (ASPECT RATIO TESPİTİ EKLENDİ) ---
+// --- DOSYA: src/context/CallContext.jsx (TAM VE EKSİKSİZ SON HALİ) ---
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
@@ -23,8 +23,6 @@ export const CallProvider = ({ children }) => {
   const { showToast } = useToast();
   const loggedInUser = auth.currentUser;
   const tracksRef = useRef({ audio: null, video: null });
-  
-  // DÜZELTME: Karşı tarafın video oranını saklamak için yeni state
   const [remoteAspectRatio, setRemoteAspectRatio] = useState(null);
 
   useEffect(() => {
@@ -36,11 +34,16 @@ export const CallProvider = ({ children }) => {
     if (!client) return;
     
     const currentTracks = tracksRef.current;
-    currentTracks.audio?.stop(); currentTracks.audio?.close();
-    currentTracks.video?.stop(); currentTracks.video?.close();
+    currentTracks.audio?.stop();
+    currentTracks.audio?.close();
+    currentTracks.video?.stop();
+    currentTracks.video?.close();
     tracksRef.current = { audio: null, video: null };
 
-    if (client.connectionState === 'CONNECTED') await client.leave();
+    if (client.connectionState === 'CONNECTED') {
+      await client.leave();
+    }
+    
     if (call) {
       remove(ref(db, `calls/${call.callerId}`));
       remove(ref(db, `calls/${call.calleeId}`));
@@ -52,7 +55,7 @@ export const CallProvider = ({ children }) => {
     setViewMode('closed');
     setIsMicMuted(false);
     setIsCameraOff(false);
-    setRemoteAspectRatio(null); // Oranı sıfırla
+    setRemoteAspectRatio(null);
   }, [client, call]);
 
   useEffect(() => {
@@ -83,9 +86,7 @@ export const CallProvider = ({ children }) => {
       setRemoteUsers(prev => [...prev.filter(u => u.uid !== user.uid), user]);
       if (mediaType === 'audio') user.audioTrack.play();
       
-      // DÜZELTME: Video yayınlandığında boyutlarını al ve oranı hesapla
       if (mediaType === 'video' && user.videoTrack) {
-        // Kısa bir gecikme ile boyutları almak daha güvenilir olabilir
         setTimeout(() => {
           const track = user.videoTrack.getMediaStreamTrack();
           if (track) {
@@ -100,7 +101,7 @@ export const CallProvider = ({ children }) => {
     const handleUserUnpublished = (user, mediaType) => {
       setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
       if (mediaType === 'video') {
-        setRemoteAspectRatio(null); // Video kapandığında oranı sıfırla
+        setRemoteAspectRatio(null);
       }
     };
     const handleUserLeft = () => {
@@ -117,20 +118,96 @@ export const CallProvider = ({ children }) => {
     };
   }, [client, endCall]);
 
-  const getToken = async (channelName, uid) => { /* ... aynı ... */ };
-  const joinChannel = async (callData, user) => { /* ... aynı ... */ };
-  const initiateCall = async (calleeId, calleeName, user, callType) => { /* ... aynı ... */ };
-  const acceptCall = async (callData) => { /* ... aynı ... */ };
-  const declineCall = async (callData) => { /* ... aynı ... */ };
-  const toggleMic = async () => { /* ... aynı ... */ };
-  const toggleCamera = async () => { /* ... aynı ... */ };
-  const flipCamera = async () => { /* ... aynı ... */ };
+  const getToken = async (channelName, uid) => {
+    try {
+      const response = await fetch(`${SERVER_URL}/api/agora/token/${channelName}/${uid}`);
+      if (!response.ok) throw new Error('Token alınamadı');
+      return (await response.json()).token;
+    } catch (error) {
+      console.error("Token alma hatası:", error);
+      showToast("Arama sunucusuna bağlanılamadı.", true);
+      return null;
+    }
+  };
+
+  const joinChannel = async (callData, user) => {
+    if (!client) return;
+    try {
+      const token = await getToken(callData.channelName, user.uid);
+      if (!token) throw new Error("Geçersiz token.");
+      await client.join(AGORA_APP_ID, callData.channelName, token, user.uid);
+      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+      let videoTrack = null;
+      if (callData.type === 'video') {
+        videoTrack = await AgoraRTC.createCameraVideoTrack();
+      }
+      tracksRef.current = { audio: audioTrack, video: videoTrack };
+      setLocalTracks({ audio: audioTrack, video: videoTrack });
+      const tracksToPublish = [audioTrack];
+      if (videoTrack) tracksToPublish.push(videoTrack);
+      await client.publish(tracksToPublish);
+      setViewMode('pip');
+    } catch (error) {
+      console.error("Kanala katılım hatası:", error);
+      showToast("Aramaya katılamadı: " + error.message, true);
+      await endCall();
+    }
+  };
+
+  const initiateCall = async (calleeId, calleeName, user, callType) => {
+    const channelName = push(ref(db, 'calls')).key;
+    const callData = {
+      callId: channelName, channelName, callerId: user.uid,
+      callerName: user.displayName, calleeId, calleeName,
+      status: 'ringing', timestamp: serverTimestamp(), type: callType
+    };
+    await set(ref(db, `calls/${calleeId}`), callData);
+    setCall(callData);
+    await joinChannel(callData, user);
+  };
+
+  const acceptCall = async (callData) => {
+    const user = auth.currentUser;
+    if (!user) return;
+    await remove(ref(db, `calls/${user.uid}`));
+    const activeCallData = { ...callData, status: 'active' };
+    setCall(activeCallData);
+    await joinChannel(activeCallData, user);
+    await set(ref(db, `calls/${callData.callerId}`), activeCallData);
+  };
+
+  const declineCall = async (callData) => {
+    await remove(ref(db, `calls/${callData.calleeId}`));
+    await remove(ref(db, `calls/${callData.callerId}`));
+  };
+
+  const toggleMic = async () => {
+    if (!tracksRef.current.audio) return;
+    await tracksRef.current.audio.setEnabled(isMicMuted);
+    setIsMicMuted(!isMicMuted);
+  };
+
+  const toggleCamera = async () => {
+    if (!tracksRef.current.video) return;
+    await tracksRef.current.video.setEnabled(isCameraOff);
+    setIsCameraOff(!isCameraOff);
+  };
+
+  const flipCamera = async () => {
+    if (isCameraOff || !tracksRef.current.video) return;
+    try {
+      await tracksRef.current.video.switchDevice('video');
+    } catch (e) {
+      showToast("Kamera değiştirilemedi.", true);
+      console.error("Kamera çevirme hatası:", e);
+    }
+  };
 
   const value = {
     call, viewMode, setViewMode, localTracks, remoteUsers,
     initiateCall, endCall, toggleMic, toggleCamera, flipCamera,
     isMicMuted, isCameraOff,
-    remoteAspectRatio // DÜZELTME: Oranı context'e ekle
+    remoteAspectRatio
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
