@@ -60,7 +60,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
         folder: 'voice_messages',
         resource_type: 'video'
       });
-      const payload = { type: 'media', mediaType: 'audio', mediaUrl: result.url, format: result.format, duration: result.duration };
+      const payload = { type: 'media', mediaType: 'audio', mediaUrl: result.url, format: result.format, duration: result.duration || null };
       const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
       await sendMessage(activeChat.id, activeChat.type, sender, payload, null, activeChannelId);
     } catch (error) {
@@ -229,7 +229,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     setIsUploading(true);
     try {
       const result = await uploadToCloudinary(file, { folder: 'chat_media' });
-      const payload = { type: 'media', mediaType: result.resourceType, mediaUrl: result.url, format: result.format, duration: result.duration };
+      const payload = { type: 'media', mediaType: result.resourceType, mediaUrl: result.url, format: result.format, duration: result.duration || null };
       const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
       await sendMessage(activeChat.id, activeChat.type, sender, payload, null, activeChannelId);
     } catch (error) {
