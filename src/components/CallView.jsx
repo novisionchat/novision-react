@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/CallView.jsx ---
+// --- DOSYA: src/components/CallView.jsx (RESPONSIVE YÜKSEKLİK DÜZELTMESİ) ---
 
 import React, { useRef, useEffect } from 'react';
 import { useCall } from '../context/CallContext.jsx';
@@ -20,6 +20,27 @@ const CallView = () => {
     const { style } = useDraggable(pipRef);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
+
+    // --- YENİ EKLENEN BÖLÜM: HER CİHAZA UYUMLU YÜKSEKLİK İÇİN ---
+    useEffect(() => {
+        // Bu efekt sadece tam ekran modunda çalışsın
+        if (viewMode === 'full' && pipRef.current) {
+            const updateHeight = () => {
+                // Pencerenin gerçek iç yüksekliğini ölç ve bir CSS değişkenine ata
+                const vh = window.innerHeight;
+                pipRef.current.style.setProperty('--call-height', `${vh}px`);
+            };
+
+            updateHeight(); // İlk açılışta yüksekliği ayarla
+            window.addEventListener('resize', updateHeight); // Pencere boyutu değiştiğinde (örn: telefon yan döndüğünde) tekrar ayarla
+
+            // Bileşen kapandığında event listener'ı temizle (hafıza sızıntısını önler)
+            return () => {
+                window.removeEventListener('resize', updateHeight);
+            };
+        }
+    }, [viewMode]); // Sadece viewMode değiştiğinde çalışsın
+    // --- YENİ BÖLÜM BİTİŞİ ---
 
     useEffect(() => {
         if (localTracks.video && localVideoRef.current) {
