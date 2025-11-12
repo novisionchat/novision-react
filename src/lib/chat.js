@@ -1,4 +1,4 @@
-// src/lib/chat.js
+// --- DOSYA: src/lib/chat.js ---
 import { db } from './firebase.js';
 import { 
     ref, 
@@ -20,17 +20,12 @@ export function getOrCreateDmId(uid1, uid2) {
     return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 }
 
-// --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
-// Fonksiyona 'conversationType' parametresini ekliyoruz.
 export async function hideConversation(userId, conversationId, conversationType) {
     let conversationRef;
 
-    // Sohbet türüne göre doğru referans yolunu belirle
     if (conversationType === 'group') {
-        // Eğer bir grupsa, kullanıcının /groups/ listesinden sil
         conversationRef = ref(db, `users/${userId}/groups/${conversationId}`);
     } else {
-        // Eğer bir DM ise (veya tür belirtilmemişse), /conversations/ listesinden sil
         conversationRef = ref(db, `users/${userId}/conversations/${conversationId}`);
     }
 
@@ -42,11 +37,8 @@ export async function hideConversation(userId, conversationId, conversationType)
         throw new Error("Sohbet gizlenemedi.");
     }
 }
-// --- DEĞİŞİKLİK BURADA BİTİYOR ---
-
 
 export async function sendMessage(chatId, chatType, sender, payload, replyTo = null, channelId = 'general') {
-    // ... dosyanın geri kalanı aynı kalacak ...
     if (!payload.text && !payload.gifUrl && !payload.mediaUrl) return;
 
     let messagesRef;

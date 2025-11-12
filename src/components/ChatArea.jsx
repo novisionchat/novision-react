@@ -13,7 +13,7 @@ import styles from './ChatArea.module.css';
 import { 
     IoMenu, IoSend, IoImageOutline, IoVideocamOutline, IoCallOutline, 
     IoReturnUpForwardOutline, IoTrashOutline, IoCopyOutline, IoSettingsOutline, 
-    IoMicOutline, IoStopCircleOutline 
+    IoMicOutline, IoStopCircleOutline, IoGiftOutline
 } from "react-icons/io5";
 import { FaChessPawn } from "react-icons/fa";
 import { BsEmojiSmile } from "react-icons/bs";
@@ -23,6 +23,7 @@ import ReplyPreview from './ReplyPreview';
 import useAutoScroll from '../hooks/useAutoScroll';
 import GroupSettingsModal from './GroupSettingsModal';
 import { useCall } from '../context/CallContext.jsx';
+import GifPicker from './GifPicker';
 
 function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const { activeConversation: activeChat, activeChannelId } = useChat();
@@ -39,6 +40,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 });
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
 
   const chatContainerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -197,6 +199,16 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
       e.target.value = null;
     }
   };
+  
+  const handleGifSelect = async (gifUrl) => {
+    if (!gifUrl || !activeChat) return;
+    try {
+        const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
+        await sendMessage(activeChat.id, activeChat.type, sender, { type: 'gif', gifUrl: gifUrl }, null, activeChannelId);
+    } catch (error) {
+        alert(`GIF gönderilemedi: ${error.message}`);
+    }
+  };
 
   const handleInitiateCall = (callType) => {
     if (activeChat.type === 'dm' && currentUser) {
@@ -265,6 +277,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
             ) : (
               <>
                 <button type="button" className={styles.actionBtn} title="Medya Ekle" onClick={() => fileInputRef.current.click()} disabled={isUploading}><IoImageOutline size={24} /></button>
+                <button type="button" className={styles.actionBtn} title="GIF Gönder" onClick={() => setIsGifPickerOpen(true)} disabled={isUploading}><IoGiftOutline size={24} /></button>
                 <input type="text" placeholder={isUploading ? "Yükleniyor..." : "Mesaj yaz..."} value={newMessage} onChange={handleInputChange} disabled={isUploading} />
                 {newMessage.trim() ? (
                   <button type="submit" className={styles.sendBtn} title="Gönder" disabled={isUploading}><IoSend size={22} /></button>
@@ -279,6 +292,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
       
       {menu.visible && <ContextMenu {...menu} onClose={closeAllPopups} />}
       <emoji-picker ref={emojiPickerRef} class="dark" style={{ display: showEmojiPicker ? 'block' : 'none', position: 'fixed', top: `${pickerPosition.y}px`, left: `${pickerPosition.x}px`, zIndex: 3001 }}></emoji-picker>
+      {isGifPickerOpen && <GifPicker onSelect={handleGifSelect} onClose={() => setIsGifPickerOpen(false)} />}
       {activeChat.type === 'group' && <GroupSettingsModal isOpen={isGroupSettingsOpen} onClose={() => setIsGroupSettingsOpen(false)} group={activeChat} currentUser={currentUser}/>}
     </main>
   );

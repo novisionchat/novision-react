@@ -1,4 +1,4 @@
-// src/components/MessageBubble.jsx
+// --- DOSYA: src/components/MessageBubble.jsx ---
 import React, { useRef, useCallback } from 'react';
 import styles from './MessageBubble.module.css';
 import { IoReturnUpBack, IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
@@ -96,7 +96,9 @@ function MessageBubble({ message, isOwnMessage, onContextMenu, onReply, onToggle
                         )}
                         {!isOwnMessage && <div className={styles.senderName}>{message.senderName}</div>}
                         <div className={styles.messageText}>
-                            {message.type === 'media' ? <MediaContent message={message} /> : message.text}
+                            {message.type === 'media' ? <MediaContent message={message} /> 
+                             : message.type === 'gif' ? <img src={message.gifUrl} alt="GIF" className={styles.gifImage} />
+                             : message.text}
                         </div>
                         <div className={styles.messageMeta}>
                             <span className={styles.messageTime}>{formatTime(message.timestamp)}</span>
