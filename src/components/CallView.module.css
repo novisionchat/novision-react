@@ -1,4 +1,4 @@
-/* --- DOSYA: src/components/CallView/CallView.module.css (TAM EKRAN VE BOYUT DÜZELTİLDİ) --- */
+/* --- DOSYA: src/components/CallView.module.css --- */
 
 .pipContainer {
     display: flex;
@@ -8,25 +8,29 @@
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
     overflow: hidden;
-    color: var(--text-primary, #FFFFFF);
+    color: #fff;
 }
 
+/* PiP Modu (Küçük Pencere) */
 .pipWindow {
     position: fixed;
     z-index: 1001;
-    width: 320px;
-    height: 240px;
+    width: 300px;
+    height: 400px; /* Dikey dikdörtgen */
     bottom: 20px;
-    left: 20px;
+    right: 20px; /* Sağ alta alalım */
 }
 
+/* Tam Ekran Modu */
 .fullWindow {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    /* DÜZELTME 1: Tam ekran modunda pozisyonu sıfırla */
-    position: relative;
+    position: fixed; /* Absolute yerine Fixed kullanarak tüm ekranı kaplamasını garantiye alıyoruz */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2000;
+    border: none;
+    border-radius: 0;
 }
 
 .pipHeader {
@@ -36,14 +40,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: 500;
-    user-select: none;
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    z-index: 3;
-    opacity: 0;
+    z-index: 10;
+    opacity: 0; /* Sadece üzerine gelince görünsün */
     transition: opacity 0.3s;
 }
 
@@ -51,68 +53,74 @@
     opacity: 1;
 }
 
-.pipControls { display: flex; gap: 4px; }
 .pipControls button {
-    background: none; border: none; color: #fff;
-    cursor: pointer; padding: 4px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-}
-.pipControls button:hover {
-    background-color: rgba(255,255,255,0.2);
+    background: none; border: none; color: #fff; cursor: pointer;
+    padding: 5px; border-radius: 50%;
 }
 
 .pipContent { 
-    flex-grow: 1; 
     position: relative;
     width: 100%;
     height: 100%;
     background-color: #111;
 }
 
+/* KARŞI TARAFIN VİDEOSU (Arkaplan) */
 .remoteVideoContainer {
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* DÜZELTME 1: Tam ekran modunda remote videonun tüm alanı kaplamasını sağla */
-.fullWindow .remoteVideoContainer {
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 1; /* En altta */
 }
 
-.remoteVideoContainer video,
+.remoteVideoContainer video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ekranı doldur */
+}
+
+/* SENİN VİDEON (Küçük Kutu) */
+.localVideoContainer {
+    position: absolute;
+    bottom: 90px; /* Kontrol butonlarının üstünde */
+    right: 20px;
+    width: 100px; /* PiP modunda boyut */
+    height: 150px;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 5; /* Üstte */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.2);
+    background: #000;
+}
+
+/* Tam ekranda senin videon biraz daha büyüyebilir */
+.fullWindow .localVideoContainer {
+    width: 120px;
+    height: 180px;
+    bottom: 100px;
+    right: 30px;
+}
+
 .localVideoContainer video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transform: scaleX(-1); /* Ayna efekti */
 }
 
 .waitingText {
-    color: var(--text-secondary);
-}
-
-.localVideoContainer {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
-    /* DÜZELTME 3: Kendi görüntümüzü biraz küçültelim */
-    width: 90px;
-    height: 120px;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    border-radius: 8px;
-    overflow: hidden;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #aaa;
     z-index: 2;
 }
 
-.fullWindow .localVideoContainer {
-    width: 120px;
-    height: 160px;
-}
-
+/* Kontrol Butonları */
 .callControls {
     position: absolute;
     bottom: 20px;
@@ -121,45 +129,42 @@
     display: flex;
     gap: 15px;
     background-color: rgba(0,0,0,0.6);
-    padding: 10px 20px;
+    padding: 12px 25px;
     border-radius: 50px;
-    z-index: 3;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.pipContainer:hover .callControls {
-    opacity: 1;
+    z-index: 10;
 }
 
 .callControls button {
     background-color: rgba(255,255,255,0.2);
-    border: none;
-    color: #fff;
-    width: 50px;
-    height: 50px;
+    border: none; color: #fff;
+    width: 50px; height: 50px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: 0.2s;
 }
 
-.callControls button:hover {
-    background-color: rgba(255,255,255,0.4);
-}
+.callControls button:hover { background-color: rgba(255,255,255,0.4); }
+.callControls button.danger { background-color: #ff4444; }
+.endCallBtn { background-color: #ff4444 !important; transform: rotate(135deg); }
 
-.callControls button.danger {
-    background-color: var(--danger-color);
+/* Sesli Arama Arayüzü */
+.audioCallContainer {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1a1a1a, #0d0d0d);
+    z-index: 2;
 }
-
-.callControls button.active {
-    background-color: var(--accent-color);
-    color: var(--text-dark);
+.audioCallAvatar {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    margin-bottom: 20px;
+    border: 3px solid var(--accent-color);
+    animation: pulse 2s infinite;
 }
-
-.endCallBtn {
-    background-color: var(--danger-color) !important;
-    transform: rotate(135deg);
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 }

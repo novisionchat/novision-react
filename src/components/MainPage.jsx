@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/MainPage.jsx  ---
+// --- DOSYA: src/components/MainPage.jsx ---
 
 import React, { useState, useEffect } from 'react';
 import LeftPanel from './LeftPanel';
@@ -24,14 +24,13 @@ function MainPage() {
   useEffect(() => {
     if (currentUser) {
       initializePresence(currentUser.uid);
-
+      // Meydan okumaları dinle
       const challengesRef = ref(db, `challenges/${currentUser.uid}`);
       const unsubscribe = onValue(challengesRef, (snapshot) => {
         if (snapshot.exists()) {
           snapshot.forEach((childSnapshot) => {
             const gameId = childSnapshot.key;
             const challengeData = childSnapshot.val();
-            
             showToast(`${challengeData.fromName} size satrançta meydan okuyor!`, {
               persistent: true,
               actions: [
@@ -64,39 +63,32 @@ function MainPage() {
     document.body.classList.toggle('sidebar-open', isSidebarOpen);
   }, [isSidebarOpen]);
 
-  const handleToggleSidebar = () => {
-    setIsSidebarOpen(prevState => !prevState);
-  };
+  const handleToggleSidebar = () => setIsSidebarOpen(p => !p);
+  const closeSidebarOnMobile = () => { if (window.innerWidth <= 768) setIsSidebarOpen(false); };
+  const handleChessButtonClick = () => setChessViewMode(p => p === 'closed' ? 'pip' : 'closed');
 
-  const closeSidebarOnMobile = () => {
-    if (window.innerWidth <= 768) {
-      setIsSidebarOpen(false);
-    }
-  };
-
-  const handleChessButtonClick = () => {
-    setChessViewMode(prev => prev === 'closed' ? 'pip' : 'closed');
-  };
-
-  const renderMainContent = () => {
-    if (chessViewMode === 'full') {
-      return <ChessGame viewMode={chessViewMode} setViewMode={setChessViewMode} activeGameId={activeGameId} setActiveGameId={setActiveGameId} />;
-    }
-    if (callViewMode === 'full') {
-      return <CallView />;
-    }
-    return <ChatArea onToggleSidebar={handleToggleSidebar} onChessButtonClick={handleChessButtonClick} />;
-  };
+  // Tam ekran kontrolü
+  const isChessFull = chessViewMode === 'full';
+  const isCallFull = callViewMode === 'full';
+  const isAnyFullScreen = isChessFull || isCallFull;
 
   return (
     <div id="main-page" className="page">
-      <LeftPanel 
-        onConversationSelect={closeSidebarOnMobile}
-      />
+      {/* Tam ekranda sol paneli gizle (mobil uyumluluk için iyi olur) */}
+      <div style={{ display: isAnyFullScreen ? 'none' : 'flex', height: '100%' }}>
+          <LeftPanel onConversationSelect={closeSidebarOnMobile} />
+      </div>
       
-      {renderMainContent()}
+      {/* Eğer herhangi biri tam ekransa ChatArea'yı render etme */}
+      {!isAnyFullScreen && (
+        <ChatArea 
+          onToggleSidebar={handleToggleSidebar} 
+          onChessButtonClick={handleChessButtonClick}
+        />
+      )}
 
-      {chessViewMode === 'pip' && (
+      {/* Satranç Bileşeni */}
+      {(chessViewMode === 'full' || chessViewMode === 'pip') && (
         <ChessGame 
           viewMode={chessViewMode} 
           setViewMode={setChessViewMode}
@@ -104,8 +96,11 @@ function MainPage() {
           setActiveGameId={setActiveGameId}
         />
       )}
-      
-      {(callViewMode === 'pip' || callViewMode === 'full') && callViewMode !== 'closed' && <CallView />}
+
+      {/* Arama Bileşeni */}
+      {(callViewMode === 'full' || callViewMode === 'pip') && (
+        <CallView />
+      )}
     </div>
   );
 }
