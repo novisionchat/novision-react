@@ -15,6 +15,7 @@ import {
     IoReturnUpForwardOutline, IoTrashOutline, IoCopyOutline, IoSettingsOutline, 
     IoMicOutline, IoStopCircleOutline, IoGiftOutline
 } from "react-icons/io5";
+import { MdOutlineGifBox } from "react-icons/md";
 import { FaChessPawn } from "react-icons/fa";
 import { BsEmojiSmile } from "react-icons/bs";
 import MessageBubble from './MessageBubble';
@@ -277,7 +278,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
             ) : (
               <>
                 <button type="button" className={styles.actionBtn} title="Medya Ekle" onClick={() => fileInputRef.current.click()} disabled={isUploading}><IoImageOutline size={24} /></button>
-                <button type="button" className={styles.actionBtn} title="GIF Gönder" onClick={() => setIsGifPickerOpen(true)} disabled={isUploading}><IoGiftOutline size={24} /></button>
+                <button type="button" className={styles.actionBtn} title="GIF Gönder" onClick={() => setIsGifPickerOpen(true)} disabled={isUploading}><MdOutlineGifBox size={28} /></button>
                 <input type="text" placeholder={isUploading ? "Yükleniyor..." : "Mesaj yaz..."} value={newMessage} onChange={handleInputChange} disabled={isUploading} />
                 {newMessage.trim() ? (
                   <button type="submit" className={styles.sendBtn} title="Gönder" disabled={isUploading}><IoSend size={22} /></button>
