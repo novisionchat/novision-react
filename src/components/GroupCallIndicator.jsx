@@ -1,6 +1,5 @@
 // src/components/GroupCallIndicator.jsx
-import React, 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- DÜZELTME BU SATIRDA YAPILDI
 import { db } from '../lib/firebase';
 import { ref, get } from 'firebase/database';
 import styles from './GroupCallIndicator.module.css';
