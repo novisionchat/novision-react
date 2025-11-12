@@ -1,6 +1,6 @@
-// --- DOSYA: src/components/CallView.jsx (RESPONSIVE YÜKSEKLİK DÜZELTMESİ) ---
+// --- DOSYA: src/components/CallView.jsx (DİNAMİK PENCERE BOYUTLANDIRMA) ---
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react'; // useMemo eklendi
 import { useCall } from '../context/CallContext.jsx';
 import { useDraggable } from '../hooks/useDraggable.js';
 import styles from './CallView.module.css';
@@ -13,47 +13,43 @@ import { auth } from '../lib/firebase.js';
 const CallView = () => {
     const { 
         call, viewMode, setViewMode, localTracks, remoteUsers, endCall, 
-        toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff
+        toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff,
+        remoteAspectRatio // DÜZELTME: Oranı context'ten al
     } = useCall();
     
     const pipRef = useRef(null);
-    const { style } = useDraggable(pipRef);
+    const { style: draggableStyle } = useDraggable(pipRef); // Adını değiştirelim
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
-    // --- YENİ EKLENEN BÖLÜM: HER CİHAZA UYUMLU YÜKSEKLİK İÇİN ---
-    useEffect(() => {
-        // Bu efekt sadece tam ekran modunda çalışsın
-        if (viewMode === 'full' && pipRef.current) {
-            const updateHeight = () => {
-                // Pencerenin gerçek iç yüksekliğini ölç ve bir CSS değişkenine ata
-                const vh = window.innerHeight;
-                pipRef.current.style.setProperty('--call-height', `${vh}px`);
+    useEffect(() => { /* ... aynı ... */ });
+    useEffect(() => { /* ... aynı ... */ });
+    useEffect(() => { /* ... aynı ... */ });
+
+    // DÜZELTME: PiP penceresinin boyutunu video oranına göre hesapla
+    const pipStyle = useMemo(() => {
+        if (viewMode !== 'pip') return {};
+
+        const MAX_WIDTH = 320;
+        const MAX_HEIGHT = 420;
+
+        // Eğer video oranı varsa ve yataysa (genişlik > yükseklik)
+        if (remoteAspectRatio && remoteAspectRatio > 1) {
+            return {
+                width: `${MAX_WIDTH}px`,
+                height: `${MAX_WIDTH / remoteAspectRatio}px`,
             };
-
-            updateHeight(); // İlk açılışta yüksekliği ayarla
-            window.addEventListener('resize', updateHeight); // Pencere boyutu değiştiğinde (örn: telefon yan döndüğünde) tekrar ayarla
-
-            // Bileşen kapandığında event listener'ı temizle (hafıza sızıntısını önler)
-            return () => {
-                window.removeEventListener('resize', updateHeight);
+        }
+        // Eğer video oranı varsa ve dikeyse
+        if (remoteAspectRatio && remoteAspectRatio <= 1) {
+            return {
+                width: `${MAX_HEIGHT * remoteAspectRatio}px`,
+                height: `${MAX_HEIGHT}px`,
             };
         }
-    }, [viewMode]); // Sadece viewMode değiştiğinde çalışsın
-    // --- YENİ BÖLÜM BİTİŞİ ---
-
-    useEffect(() => {
-        if (localTracks.video && localVideoRef.current) {
-            localTracks.video.play(localVideoRef.current);
-        }
-    }, [localTracks.video]);
-
-    useEffect(() => {
-        const remoteUser = remoteUsers[0];
-        if (remoteUser?.videoTrack && remoteVideoRef.current) {
-            remoteUser.videoTrack.play(remoteVideoRef.current);
-        }
-    }, [remoteUsers]);
+        // Varsayılan (henüz video gelmediyse)
+        return { width: '240px', height: '320px' };
+    }, [viewMode, remoteAspectRatio]);
 
     if (!call || viewMode === 'closed') return null;
 
@@ -62,16 +58,15 @@ const CallView = () => {
     const isVideoCall = call.type === 'video';
     const containerClass = `${styles.pipContainer} ${viewMode === 'pip' ? styles.pipWindow : ''} ${viewMode === 'full' ? styles.fullWindow : ''}`;
 
-    const renderAudioCallUI = () => (
-        <div className={styles.audioCallContainer}>
-            <img src="/assets/icon.png" alt="Avatar" className={styles.audioCallAvatar} />
-            <h3>{otherUserName}</h3>
-            <span>Sesli Görüşme</span>
-        </div>
-    );
+    const renderAudioCallUI = () => ( /* ... aynı ... */ );
 
     return (
-        <div ref={pipRef} className={containerClass} style={viewMode === 'pip' ? style : {}}>
+        <div 
+            ref={pipRef} 
+            className={containerClass} 
+            // DÜZELTME: Sürükleme stili ile boyut stilini birleştir
+            style={viewMode === 'pip' ? { ...draggableStyle, ...pipStyle } : {}}
+        >
             <div className={styles.pipHeader} data-drag-handle>
                 <span>{otherUserName} ile görüşme</span>
                 <div className={styles.pipControls}>
