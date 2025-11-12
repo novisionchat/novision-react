@@ -1,8 +1,11 @@
-// --- YENİ DOSYA: src/components/GifPicker.jsx ---
+// --- GÜNCELLENMİŞ DOSYA: src/components/GifPicker.jsx ---
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './GifPicker.module.css';
 import { IoClose, IoSearch } from 'react-icons/io5';
+
+// Sunucu adresini doğrudan buraya ekliyoruz.
+const API_URL = 'https://novision-backend.onrender.com';
 
 function GifPicker({ onSelect, onClose }) {
   const [gifs, setGifs] = useState([]);
@@ -13,8 +16,16 @@ function GifPicker({ onSelect, onClose }) {
   const fetchTrendingGifs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/tenor/trending');
-      if (!response.ok) throw new Error('GIFler alınamadı');
+      // --- DEĞİŞİKLİK BURADA ---
+      // İstek artık tam sunucu adresine yapılıyor.
+      const response = await fetch(`${API_URL}/api/tenor/trending`);
+      
+      if (!response.ok) {
+        // Sunucudan gelen hatayı daha detaylı loglayalım
+        const errorData = await response.text();
+        console.error('Sunucu Hatası:', response.status, errorData);
+        throw new Error('GIFler alınamadı');
+      }
       const data = await response.json();
       setGifs(data.results);
     } catch (error) {
@@ -31,8 +42,15 @@ function GifPicker({ onSelect, onClose }) {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/tenor/search?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error('GIF araması başarısız');
+      // --- DEĞİŞİKLİK BURADA ---
+      // İstek artık tam sunucu adresine yapılıyor.
+      const response = await fetch(`${API_URL}/api/tenor/search?q=${encodeURIComponent(query)}`);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Sunucu Arama Hatası:', response.status, errorData);
+        throw new Error('GIF araması başarısız');
+      }
       const data = await response.json();
       setGifs(data.results);
     } catch (error) {
