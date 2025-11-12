@@ -1,4 +1,4 @@
-// --- DOSYA: src/context/CallContext.jsx (Tam ve Düzeltilmiş Hali) ---
+// --- DOSYA: src/context/CallContext.jsx ---
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
@@ -24,8 +24,9 @@ export const CallProvider = ({ children }) => {
   const loggedInUser = auth.currentUser;
   const tracksRef = useRef({ audio: null, video: null });
 
-  const [videoDevices, setVideoDevices] = useState([]);
-  const [currentVideoDeviceIndex, setCurrentVideoDeviceIndex] = useState(0);
+  // --- YENİ EKLENEN STATE'LER ---
+  const [videoDevices, setVideoDevices] = useState([]); // Mevcut kameraların listesi
+  const [currentVideoDeviceIndex, setCurrentVideoDeviceIndex] = useState(0); // Aktif kameranın listedeki indeksi
 
   useEffect(() => {
     const agoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -57,6 +58,7 @@ export const CallProvider = ({ children }) => {
     setViewMode('closed');
     setIsMicMuted(false);
     setIsCameraOff(false);
+    // --- YENİ ---: State'leri temizle
     setVideoDevices([]);
     setCurrentVideoDeviceIndex(0);
   }, [client, call]);
@@ -119,6 +121,7 @@ export const CallProvider = ({ children }) => {
     }
   };
 
+  // --- joinChannel fonksiyonu GÜNCELLENDİ ---
   const joinChannel = async (callData, user) => {
     if (!client) return;
     try {
@@ -130,12 +133,14 @@ export const CallProvider = ({ children }) => {
       let videoTrack = null;
       
       if (callData.type === 'video') {
+        // Kamera listesini al ve state'e kaydet
         const cameras = await AgoraRTC.getCameras();
         if (cameras.length === 0) {
           showToast("Kamera bulunamadı.", true);
         }
         setVideoDevices(cameras);
         
+        // Eğer en az bir kamera varsa, ilkini kullanarak video track oluştur
         if (cameras.length > 0) {
           videoTrack = await AgoraRTC.createCameraVideoTrack({
             deviceId: cameras[0].deviceId
@@ -186,37 +191,20 @@ export const CallProvider = ({ children }) => {
   };
 
   const toggleMic = async () => {
-    const audioTrack = tracksRef.current.audio;
-    if (!audioTrack) return;
-
-    try {
-      const newEnabledState = !audioTrack.enabled;
-      await audioTrack.setEnabled(newEnabledState);
-      setIsMicMuted(!newEnabledState);
-    } catch (e) {
-      console.error("Mikrofon durumu değiştirilemedi:", e);
-      showToast("Mikrofon durumu değiştirilemedi.", true);
-    }
+    if (!tracksRef.current.audio) return;
+    await tracksRef.current.audio.setEnabled(!isMicMuted); // Mantığı düzelttim
+    setIsMicMuted(!isMicMuted);
   };
 
   const toggleCamera = async () => {
-    const videoTrack = tracksRef.current.video;
-    if (!videoTrack) return;
-
-    try {
-      const newEnabledState = !videoTrack.enabled;
-      await videoTrack.setEnabled(newEnabledState);
-      setIsCameraOff(!newEnabledState);
-    } catch (e) {
-      console.error("Kamera durumu değiştirilemedi:", e);
-      showToast("Kamera durumu değiştirilemedi.", true);
-    }
+    if (!tracksRef.current.video) return;
+    await tracksRef.current.video.setEnabled(!isCameraOff); // Mantığı düzelttim
+    setIsCameraOff(!isCameraOff);
   };
-  
-  // --- DÜZELTİLMİŞ ve GÜNCELLENMİŞ FONKSİYON ---
+
+  // --- flipCamera fonksiyonu TAMAMEN YENİLENDİ ---
   const flipCamera = async () => {
-    const videoTrack = tracksRef.current.video;
-    if (!videoTrack || videoDevices.length < 2) {
+    if (isCameraOff || !tracksRef.current.video || videoDevices.length < 2) {
       if (videoDevices.length < 2) {
         showToast("Değiştirilecek başka kamera yok.", false);
       }
@@ -224,20 +212,15 @@ export const CallProvider = ({ children }) => {
     }
 
     try {
-      // 1. Kamera değiştirme işlemi "setDevice" metodu, track devre dışı iken
-      //    hata verebileceği için, önce track'in aktif olduğundan emin oluyoruz.
-      if (!videoTrack.enabled) {
-        await videoTrack.setEnabled(true);
-      }
-      
-      // 2. Bir sonraki kameraya geçiş yapıyoruz.
+      // Bir sonraki kameranın indeksini hesapla (döngüsel)
       const nextIndex = (currentVideoDeviceIndex + 1) % videoDevices.length;
       const nextDevice = videoDevices[nextIndex];
-      await videoTrack.setDevice(nextDevice.deviceId);
       
-      // 3. State'lerimizi güncelleyerek arayüzü doğru duruma getiriyoruz.
+      // Sonraki kameranın deviceId'sini kullanarak kamerayı değiştir
+      await tracksRef.current.video.setDevice(nextDevice.deviceId);
+      
+      // Aktif kamera indeksini güncelle
       setCurrentVideoDeviceIndex(nextIndex);
-      setIsCameraOff(false); // Kamera artık kesinlikle açık olduğu için state'i false yapıyoruz.
 
     } catch (e) {
       showToast("Kamera değiştirilemedi.", true);
@@ -249,7 +232,7 @@ export const CallProvider = ({ children }) => {
     call, viewMode, setViewMode, localTracks, remoteUsers,
     initiateCall, endCall, toggleMic, toggleCamera, flipCamera,
     isMicMuted, isCameraOff,
-    videoDevices
+    videoDevices // --- YENİ ---: View'ın kullanabilmesi için dışa aktar
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
