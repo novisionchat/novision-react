@@ -13,7 +13,7 @@ import { useCall } from '../context/CallContext';
 
 function MainPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const currentUser = auth.currentUser;
+  const currentUser = auth.currentUser; // <-- Kullanıcı bilgisi burada
   const { showToast } = useToast();
 
   const [chessViewMode, setChessViewMode] = useState('closed');
@@ -76,7 +76,11 @@ function MainPage() {
     <div id="main-page" className="page">
       {/* Tam ekranda sol paneli gizle (mobil uyumluluk için iyi olur) */}
       <div style={{ display: isAnyFullScreen ? 'none' : 'flex', height: '100%' }}>
-          <LeftPanel onConversationSelect={closeSidebarOnMobile} />
+          {/* YENİ: currentUser prop'u LeftPanel'e aktarılıyor */}
+          <LeftPanel 
+            currentUser={currentUser} 
+            onConversationSelect={closeSidebarOnMobile} 
+          />
       </div>
       
       {/* Eğer herhangi biri tam ekransa ChatArea'yı render etme */}

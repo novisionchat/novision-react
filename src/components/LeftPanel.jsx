@@ -1,8 +1,8 @@
-// src/components/LeftPanel.jsx
 import React, { useState, useEffect } from 'react';
-import { db, auth } from '../lib/firebase';
-import { ref, onValue } from 'firebase/database';
+import { db } from '../lib/firebase';
+import { ref, onValue, get } from 'firebase/database';
 import { logoutUser } from '../lib/auth';
+// 1. removeContact fonksiyonunu friends.js'ten import ediyoruz
 import { listenForContacts, saveContact, removeContact } from '../lib/friends';
 import { listenForConversations } from '../lib/conversations';
 import { hideConversation } from '../lib/chat';
@@ -17,10 +17,10 @@ import ProfileSettingsModal from './ProfileSettingsModal';
 import ChannelList from './ChannelList';
 import CreateGroupModal from './CreateGroupModal';
 
-function LeftPanel({ onConversationSelect }) {
+function LeftPanel({ currentUser, onConversationSelect }) {
   const { activeConversation, selectConversation, selectChannel, activeChannelId } = useChat();
-  const currentUser = auth.currentUser;
 
+  const [detailedGroup, setDetailedGroup] = useState(null);
   const [activeTab, setActiveTab] = useState('chats');
   const [userData, setUserData] = useState({ username: 'Yükleniyor...', tag: '0000', avatar: '/assets/icon.png' });
   const [conversations, setConversations] = useState([]);
@@ -41,27 +41,40 @@ function LeftPanel({ onConversationSelect }) {
     const unsubFriends = listenForContacts(currentUser.uid, setFriends);
     return () => { unsubUser(); unsubConversations(); unsubFriends(); };
   }, [currentUser]);
-  
-  const handleSelectConversation = (item) => {
-      selectConversation(item);
-      onConversationSelect();
-  };
 
-  // --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
-  // Kanal seçildiğinde çalışacak yeni fonksiyon
-  const handleSelectChannel = (channelId) => {
-    // 1. Context'teki aktif kanalı güncelle
-    selectChannel(channelId);
-    // 2. MainPage'e sidebar'ı kapatması için sinyal gönder
+  useEffect(() => {
+    if (activeConversation && activeConversation.type === 'group') {
+      const groupRef = ref(db, `groups/${activeConversation.id}`);
+      get(groupRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          setDetailedGroup({ type: 'group', ...snapshot.val().meta });
+        }
+      });
+    } else {
+      setDetailedGroup(null);
+    }
+  }, [activeConversation]);
+
+  const handleSelectConversation = (item) => {
+    selectConversation(item);
     onConversationSelect();
   };
-  // --- DEĞİŞİKLİK BURADA BİTİYOR ---
+
+  const handleSelectChannel = (channelId) => {
+    selectChannel(channelId);
+    onConversationSelect();
+  };
 
   const handleBackToConversations = () => {
     selectConversation(null);
+    setDetailedGroup(null);
   };
 
-  const handleLogout = async () => { if (confirm('Çıkış yapmak istediğinize emin misiniz?')) await logoutUser(); };
+  const handleLogout = async () => { 
+    if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+      await logoutUser(); 
+    }
+  };
 
   const handleAddFriend = async (e) => {
     e.preventDefault();
@@ -72,6 +85,22 @@ function LeftPanel({ onConversationSelect }) {
       setFriendTagInput('');
     } catch (error) {
       alert(`Hata: ${error.message}`);
+    }
+  };
+
+  // 2. Kişiyi silmek için yeni bir handler fonksiyonu oluşturuyoruz
+  const handleRemoveContact = async (contactId) => {
+    const friendToRemove = friends.find(f => f.uid === contactId);
+    if (!friendToRemove) return;
+
+    if (confirm(`'${friendToRemove.username}#${friendToRemove.tag}' kişisini silmek istediğinizden emin misiniz?`)) {
+      try {
+        await removeContact(currentUser.uid, contactId);
+        // İsteğe bağlı: Başarı mesajı gösterebilirsiniz.
+        // alert("Kişi başarıyla silindi.");
+      } catch (error) {
+        alert(`Hata: ${error.message}`);
+      }
     }
   };
   
@@ -90,9 +119,28 @@ function LeftPanel({ onConversationSelect }) {
 
   const showContextMenu = (x, y, item) => {
     const isFriendItem = !item.type && item.uid;
-    const menuItems = isFriendItem
-        ? [ { label: 'Kişiyi Sil', icon: <IoTrashOutline />, danger: true, onClick: () => { /* ... */ } } ]
-        : [ { label: 'Sohbeti Gizle', icon: <IoEyeOffOutline />, danger: true, onClick: () => handleHideConversation(item) } ];
+    let menuItems = [];
+
+    if (isFriendItem) {
+      // 3. Sağ tık menüsünü, yeni oluşturduğumuz silme fonksiyonunu çağıracak şekilde güncelliyoruz
+      menuItems = [ 
+        { 
+          label: 'Kişiyi Sil', 
+          icon: <IoTrashOutline />, 
+          danger: true, 
+          onClick: () => handleRemoveContact(item.uid) 
+        } 
+      ];
+    } else {
+      menuItems = [ 
+        { 
+          label: 'Sohbeti Gizle', 
+          icon: <IoEyeOffOutline />, 
+          danger: true, 
+          onClick: () => handleHideConversation(item) 
+        } 
+      ];
+    }
     setMenu({ visible: true, x, y, items: menuItems });
   };
   const closeMenu = () => setMenu({ ...menu, visible: false });
@@ -100,10 +148,10 @@ function LeftPanel({ onConversationSelect }) {
   return (
     <>
       <aside className={`${styles.leftPanel} left-panel`}>
-        {panelView === 'channels' && activeConversation ? (
+        {panelView === 'channels' && detailedGroup ? (
           <div className={styles.channelHeader}>
             <button onClick={handleBackToConversations} className={styles.backButton} title="Sohbetlere Geri Dön"><IoArrowBack size={22} /></button>
-            <h3>{activeConversation.name}</h3>
+            <h3>{detailedGroup.name}</h3>
           </div>
         ) : (
           <div className={styles.panelHeader}>
@@ -119,9 +167,9 @@ function LeftPanel({ onConversationSelect }) {
         )}
 
         {panelView === 'channels' ? (
-          // --- DEĞİŞİKLİK BURADA: onSelectChannel prop'una yeni fonksiyonu veriyoruz ---
           <ChannelList 
-            groupId={activeConversation.id} 
+            group={detailedGroup} 
+            currentUser={currentUser}
             onSelectChannel={handleSelectChannel} 
             activeChannelId={activeChannelId} 
           />

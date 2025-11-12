@@ -5,13 +5,41 @@
     overflow-y: auto;
 }
 
+/* YENİ: Başlık ve butonu yan yana getirmek için */
+.channelListHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 5px;
+    margin-bottom: 10px;
+}
+
+/* GÜNCELLEME: h4'ten gereksiz alt boşluk kaldırıldı */
 .channelListContainer h4 {
     font-size: 0.8em;
     font-weight: bold;
     color: var(--text-secondary);
     letter-spacing: 0.5px;
-    padding: 0 5px;
-    margin-bottom: 10px;
+    margin: 0;
+}
+
+/* YENİ: Kanal ekleme butonu stili */
+.addChannelBtn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.addChannelBtn:hover {
+    color: var(--text-primary);
+    background-color: var(--ui-bg-light);
 }
 
 .channelListContainer ul {

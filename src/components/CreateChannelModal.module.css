@@ -1,0 +1,46 @@
+/* src/components/CreateChannelModal.module.css */
+.modalOverlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); z-index: 2000; display: flex;
+    justify-content: center; align-items: center; padding: 20px;
+}
+.modalContent {
+    background: var(--ui-bg-light); padding: 25px; border-radius: 12px;
+    max-width: 400px; width: 100%; display: flex; flex-direction: column;
+    gap: 20px; position: relative;
+}
+.modalCloseBtn {
+    position: absolute; top: 10px; right: 10px; font-size: 1.5em;
+    color: var(--text-secondary); background: none; border: none;
+    cursor: pointer; line-height: 1; padding: 5px; border-radius: 50%;
+}
+.modalCloseBtn:hover { background-color: var(--other-message-bg); }
+.modalContent h2 { margin: 0; text-align: center; }
+
+.inputSection label { 
+    font-size: 0.9em; 
+    color: var(--text-secondary); 
+    font-weight: 500; 
+    margin-bottom: 8px; 
+    display: block; 
+}
+.inputSection input { 
+    width: 100%; 
+    padding: 12px; 
+    background: var(--other-message-bg); 
+    border: 1px solid var(--border-color); 
+    color: var(--text-primary); 
+    border-radius: 8px; 
+    font-size: 1em; 
+}
+.inputSection input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.primaryBtn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    cursor: pointer; font-size: 1em; font-weight: bold;
+    background: var(--accent-color); color: var(--text-dark);
+}
+.primaryBtn:disabled { opacity: 0.6; cursor: not-allowed; }
