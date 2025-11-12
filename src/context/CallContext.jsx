@@ -24,6 +24,10 @@ export const CallProvider = ({ children }) => {
   const loggedInUser = auth.currentUser;
   const tracksRef = useRef({ audio: null, video: null });
 
+  // --- YENİ EKLENEN STATE'LER ---
+  const [videoDevices, setVideoDevices] = useState([]); // Mevcut kameraların listesi
+  const [currentVideoDeviceIndex, setCurrentVideoDeviceIndex] = useState(0); // Aktif kameranın listedeki indeksi
+
   useEffect(() => {
     const agoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
     setClient(agoraClient);
@@ -54,6 +58,9 @@ export const CallProvider = ({ children }) => {
     setViewMode('closed');
     setIsMicMuted(false);
     setIsCameraOff(false);
+    // --- YENİ ---: State'leri temizle
+    setVideoDevices([]);
+    setCurrentVideoDeviceIndex(0);
   }, [client, call]);
 
   useEffect(() => {
@@ -114,22 +121,40 @@ export const CallProvider = ({ children }) => {
     }
   };
 
+  // --- joinChannel fonksiyonu GÜNCELLENDİ ---
   const joinChannel = async (callData, user) => {
     if (!client) return;
     try {
       const token = await getToken(callData.channelName, user.uid);
       if (!token) throw new Error("Geçersiz token.");
       await client.join(AGORA_APP_ID, callData.channelName, token, user.uid);
+      
       const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
       let videoTrack = null;
+      
       if (callData.type === 'video') {
-        videoTrack = await AgoraRTC.createCameraVideoTrack();
+        // Kamera listesini al ve state'e kaydet
+        const cameras = await AgoraRTC.getCameras();
+        if (cameras.length === 0) {
+          showToast("Kamera bulunamadı.", true);
+        }
+        setVideoDevices(cameras);
+        
+        // Eğer en az bir kamera varsa, ilkini kullanarak video track oluştur
+        if (cameras.length > 0) {
+          videoTrack = await AgoraRTC.createCameraVideoTrack({
+            deviceId: cameras[0].deviceId
+          });
+        }
       }
+      
       tracksRef.current = { audio: audioTrack, video: videoTrack };
       setLocalTracks({ audio: audioTrack, video: videoTrack });
+      
       const tracksToPublish = [audioTrack];
       if (videoTrack) tracksToPublish.push(videoTrack);
       await client.publish(tracksToPublish);
+      
       setViewMode('pip');
     } catch (error) {
       console.error("Kanala katılım hatası:", error);
@@ -167,20 +192,36 @@ export const CallProvider = ({ children }) => {
 
   const toggleMic = async () => {
     if (!tracksRef.current.audio) return;
-    await tracksRef.current.audio.setEnabled(isMicMuted);
+    await tracksRef.current.audio.setEnabled(!isMicMuted); // Mantığı düzelttim
     setIsMicMuted(!isMicMuted);
   };
 
   const toggleCamera = async () => {
     if (!tracksRef.current.video) return;
-    await tracksRef.current.video.setEnabled(isCameraOff);
+    await tracksRef.current.video.setEnabled(!isCameraOff); // Mantığı düzelttim
     setIsCameraOff(!isCameraOff);
   };
 
+  // --- flipCamera fonksiyonu TAMAMEN YENİLENDİ ---
   const flipCamera = async () => {
-    if (isCameraOff || !tracksRef.current.video) return;
+    if (isCameraOff || !tracksRef.current.video || videoDevices.length < 2) {
+      if (videoDevices.length < 2) {
+        showToast("Değiştirilecek başka kamera yok.", false);
+      }
+      return;
+    }
+
     try {
-      await tracksRef.current.video.switchDevice('video');
+      // Bir sonraki kameranın indeksini hesapla (döngüsel)
+      const nextIndex = (currentVideoDeviceIndex + 1) % videoDevices.length;
+      const nextDevice = videoDevices[nextIndex];
+      
+      // Sonraki kameranın deviceId'sini kullanarak kamerayı değiştir
+      await tracksRef.current.video.setDevice(nextDevice.deviceId);
+      
+      // Aktif kamera indeksini güncelle
+      setCurrentVideoDeviceIndex(nextIndex);
+
     } catch (e) {
       showToast("Kamera değiştirilemedi.", true);
       console.error("Kamera çevirme hatası:", e);
@@ -190,7 +231,8 @@ export const CallProvider = ({ children }) => {
   const value = {
     call, viewMode, setViewMode, localTracks, remoteUsers,
     initiateCall, endCall, toggleMic, toggleCamera, flipCamera,
-    isMicMuted, isCameraOff
+    isMicMuted, isCameraOff,
+    videoDevices // --- YENİ ---: View'ın kullanabilmesi için dışa aktar
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;

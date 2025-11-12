@@ -13,7 +13,8 @@ import { auth } from '../lib/firebase.js';
 const CallView = () => {
     const {
         call, viewMode, setViewMode, localTracks, remoteUsers, endCall,
-        toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff
+        toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff,
+        videoDevices // --- YENİ ---: Kamera listesini context'ten al
     } = useCall();
 
     const pipRef = useRef(null);
@@ -21,7 +22,7 @@ const CallView = () => {
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
-    const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9); // Varsayılan bir oranla başla
+    const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
     const [controlsVisible, setControlsVisible] = useState(true);
     const controlsTimerRef = useRef(null);
 
@@ -72,7 +73,7 @@ const CallView = () => {
                 videoElement.removeEventListener('resize', handleResize);
             };
         } else {
-             setVideoAspectRatio(16 / 9); // Kullanıcı ayrıldığında varsayılan orana dön
+             setVideoAspectRatio(16 / 9);
         }
     }, [remoteUsers]);
 
@@ -126,9 +127,11 @@ const CallView = () => {
                              <video ref={remoteVideoRef} playsInline autoPlay />
                             {remoteUsers.length === 0 && <div className={styles.waitingText}>Bağlanılıyor...</div>}
                         </div>
-                        <div className={styles.localVideoContainer}>
-                            <video ref={localVideoRef} playsInline autoPlay muted />
-                        </div>
+                        {localTracks.video && (
+                          <div className={styles.localVideoContainer}>
+                              <video ref={localVideoRef} playsInline autoPlay muted />
+                          </div>
+                        )}
                     </>
                 ) : (
                     renderAudioCallUI()
@@ -143,7 +146,14 @@ const CallView = () => {
                             <button onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className={isCameraOff ? styles.danger : ''}>
                                 {isCameraOff ? <IoVideocamOff size={24} /> : <IoVideocam size={24} />}
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); flipCamera(); }}><IoSync size={24} /></button>
+                            {/* --- GÜNCELLENDİ ---: Buton sadece 1'den fazla kamera varsa etkinleştirilir */}
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); flipCamera(); }} 
+                                disabled={videoDevices.length < 2}
+                                title={videoDevices.length < 2 ? "Başka kamera yok" : "Kamerayı Değiştir"}
+                            >
+                                <IoSync size={24} />
+                            </button>
                         </>
                     )}
                     <button onClick={(e) => { e.stopPropagation(); endCall(); }} className={styles.endCallBtn}>
