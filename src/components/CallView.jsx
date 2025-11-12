@@ -1,58 +1,44 @@
-// --- DOSYA: src/components/CallView.jsx (GÜNCELLENMİŞ) ---
+// --- DOSYA: src/components/CallView.jsx (Tam ve Eksiksiz Hali) ---
 
 import React, { useRef, useEffect, useState } from 'react';
 import { useCall } from '../context/CallContext.jsx';
 import { useDraggable } from '../hooks/useDraggable.js';
 import styles from './CallView.module.css';
-import { 
-    IoClose, IoExpand, IoContract, IoMicOff, IoMic, 
-    IoVideocamOff, IoVideocam, IoCall, IoSync 
+import {
+    IoClose, IoExpand, IoContract, IoMicOff, IoMic,
+    IoVideocamOff, IoVideocam, IoCall, IoSync
 } from "react-icons/io5";
 import { auth } from '../lib/firebase.js';
 
 const CallView = () => {
-    const { 
-        call, viewMode, setViewMode, localTracks, remoteUsers, endCall, 
+    const {
+        call, viewMode, setViewMode, localTracks, remoteUsers, endCall,
         toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff
     } = useCall();
-    
+
     const pipRef = useRef(null);
-    const { style: draggableStyle } = useDraggable(pipRef); // useDraggable'dan gelen stili yeniden adlandırdık
+    const { style: draggableStyle } = useDraggable(pipRef);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
-    // --- YENİ EKLENEN BÖLÜMLER ---
-    const [videoAspectRatio, setVideoAspectRatio] = useState(null);
+    const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9); // Varsayılan bir oranla başla
     const [controlsVisible, setControlsVisible] = useState(true);
     const controlsTimerRef = useRef(null);
 
-    // Kontrolleri gösteren ve 3 saniye sonra gizleyen fonksiyon
     const showControls = () => {
         setControlsVisible(true);
-        if (controlsTimerRef.current) {
-            clearTimeout(controlsTimerRef.current);
-        }
-        controlsTimerRef.current = setTimeout(() => {
-            setControlsVisible(false);
-        }, 3000);
+        if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+        controlsTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
     };
 
     useEffect(() => {
-        showControls(); // Bileşen yüklendiğinde kontrolleri göster
-        return () => {
-            if (controlsTimerRef.current) {
-                clearTimeout(controlsTimerRef.current);
-            }
-        };
+        showControls();
+        return () => { if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current); };
     }, []);
-    // --- YENİ BÖLÜMLER BİTİŞİ ---
 
     useEffect(() => {
         if (viewMode === 'full' && pipRef.current) {
-            const updateHeight = () => {
-                const vh = window.innerHeight;
-                pipRef.current.style.setProperty('--call-height', `${vh}px`);
-            };
+            const updateHeight = () => pipRef.current.style.setProperty('--call-height', `${window.innerHeight}px`);
             updateHeight();
             window.addEventListener('resize', updateHeight);
             return () => window.removeEventListener('resize', updateHeight);
@@ -71,36 +57,35 @@ const CallView = () => {
         if (remoteUser?.videoTrack && videoElement) {
             remoteUser.videoTrack.play(videoElement);
 
-            // --- YENİ: Video'nun en-boy oranını almak için ---
-            const handleMetadata = () => {
+            const handleResize = () => {
                 if (videoElement.videoWidth > 0) {
                     const aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
                     setVideoAspectRatio(aspectRatio);
                 }
             };
-            videoElement.addEventListener('loadedmetadata', handleMetadata);
+            
+            videoElement.addEventListener('loadedmetadata', handleResize);
+            videoElement.addEventListener('resize', handleResize);
+
             return () => {
-                videoElement.removeEventListener('loadedmetadata', handleMetadata);
+                videoElement.removeEventListener('loadedmetadata', handleResize);
+                videoElement.removeEventListener('resize', handleResize);
             };
-            // --- YENİ BÖLÜM BİTİŞİ ---
         } else {
-             setVideoAspectRatio(null); // Kullanıcı ayrıldığında oranı sıfırla
+             setVideoAspectRatio(16 / 9); // Kullanıcı ayrıldığında varsayılan orana dön
         }
     }, [remoteUsers]);
 
     if (!call || viewMode === 'closed') return null;
 
-    // --- YENİ: Dinamik PiP Pencere Stili ---
     const pipDynamicStyle = {};
     if (viewMode === 'pip') {
-        const baseWidth = 300; // PiP penceresinin temel genişliği
+        const baseWidth = 280;
         pipDynamicStyle.width = `${baseWidth}px`;
-        // Eğer video oranı varsa, yüksekliği ona göre ayarla. Yoksa varsayılan 4:3 oranını kullan.
-        pipDynamicStyle.height = videoAspectRatio ? `${baseWidth / videoAspectRatio}px` : `400px`;
+        pipDynamicStyle.height = `${baseWidth / videoAspectRatio}px`;
     }
 
     const containerStyle = viewMode === 'pip' ? { ...draggableStyle, ...pipDynamicStyle } : {};
-    // --- YENİ BÖLÜM BİTİŞİ ---
 
     const currentUser = auth.currentUser;
     const otherUserName = currentUser && call.callerId === currentUser.uid ? call.calleeName : call.callerName;
@@ -116,15 +101,13 @@ const CallView = () => {
     );
 
     return (
-        // DEĞİŞİKLİK: onClick ve onMouseMove ile kontrolleri göster
-        <div 
-            ref={pipRef} 
-            className={containerClass} 
+        <div
+            ref={pipRef}
+            className={containerClass}
             style={containerStyle}
             onClick={showControls}
             onMouseMove={showControls}
         >
-            {/* DEĞİŞİKLİK: controlsVisible durumuna göre gizle/göster */}
             <div className={`${styles.pipHeader} ${!controlsVisible ? styles.controlsHidden : ''}`} data-drag-handle>
                 <span>{otherUserName} ile görüşme</span>
                 <div className={styles.pipControls}>
@@ -150,8 +133,7 @@ const CallView = () => {
                 ) : (
                     renderAudioCallUI()
                 )}
-                
-                {/* DEĞİŞİKLİK: controlsVisible durumuna göre gizle/göster */}
+
                 <div className={`${styles.callControls} ${!controlsVisible ? styles.controlsHidden : ''}`}>
                     <button onClick={(e) => { e.stopPropagation(); toggleMic(); }} className={isMicMuted ? styles.danger : ''}>
                         {isMicMuted ? <IoMicOff size={24} /> : <IoMic size={24} />}
