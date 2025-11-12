@@ -1,165 +1,313 @@
-/* --- DOSYA: src/components/CallView/CallView.module.css (TAM EKRAN VE BOYUT DÜZELTİLDİ) --- */
+// --- DOSYA: src/components/ChatArea.jsx (TAM VE NİHAİ VERSİYON) ---
 
-.pipContainer {
-    display: flex;
-    flex-direction: column;
-    background-color: #000;
-    border: 1px solid var(--border-color, #2a2a2a);
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-    overflow: hidden;
-    color: var(--text-primary, #FFFFFF);
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useChat } from '../context/ChatContext';
+import { listenForMessages, sendMessage, deleteMessage, toggleReaction } from '../lib/chat';
+import { listenToTyping, setTypingStatus } from '../lib/typing';
+import { markMessagesAsRead } from '../lib/messageStatus';
+import { listenToUserPresence, getPresenceText, formatLastSeen } from '../lib/presence';
+import { uploadToCloudinary } from '../lib/cloudinary';
+import { auth } from '../lib/firebase';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import styles from './ChatArea.module.css';
+import { 
+    IoMenu, IoSend, IoImageOutline, IoVideocamOutline, IoCallOutline, 
+    IoReturnUpForwardOutline, IoTrashOutline, IoCopyOutline, IoSettingsOutline, 
+    IoMicOutline, IoStopCircleOutline 
+} from "react-icons/io5";
+import { FaChessPawn } from "react-icons/fa";
+import { BsEmojiSmile } from "react-icons/bs";
+import MessageBubble from './MessageBubble';
+import ContextMenu from './ContextMenu';
+import ReplyPreview from './ReplyPreview';
+import useAutoScroll from '../hooks/useAutoScroll';
+import GroupSettingsModal from './GroupSettingsModal';
+import { useCall } from '../context/CallContext.jsx';
+
+function ChatArea({ onToggleSidebar, onChessButtonClick }) {
+  const { activeConversation: activeChat, activeChannelId } = useChat();
+  const { initiateCall } = useCall();
+  const currentUser = auth.currentUser;
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [typingStatusText, setTypingStatusText] = useState('');
+  const [opponentStatus, setOpponentStatus] = useState('');
+  const [currentReply, setCurrentReply] = useState(null);
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [menu, setMenu] = useState({ visible: false, x: 0, y: 0, items: [], target: null });
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 });
+  const [recordingTime, setRecordingTime] = useState(0);
+
+  const chatContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const emojiPickerRef = useRef(null);
+  const targetMessageRef = useRef(null);
+
+  const { preserveScrollPosition } = useAutoScroll(chatContainerRef, messages);
+  
+  const onRecordingComplete = async (audioFile) => {
+    if (!audioFile || !activeChat) return;
+    setIsUploading(true);
+    try {
+      const result = await uploadToCloudinary(audioFile, { 
+        folder: 'voice_messages',
+        resource_type: 'video'
+      });
+
+      const payload = {
+          type: 'media',
+          mediaType: 'audio',
+          mediaUrl: result.url,
+          format: result.format,
+          duration: result.duration,
+      };
+
+      const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
+      await sendMessage(activeChat.id, activeChat.type, sender, payload, null, activeChannelId);
+    } catch (error) {
+      alert(`Sesli mesaj gönderilemedi: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const { isRecording, startRecording, stopRecording, cancelRecording } = useVoiceRecorder(onRecordingComplete);
+  
+  useEffect(() => {
+    if (!activeChat || !currentUser) {
+      setMessages([]); setTypingStatusText(''); setOpponentStatus(''); setCurrentReply(null);
+      return;
+    }
+    const unsubMessages = listenForMessages(activeChat.id, activeChat.type, setMessages, activeChannelId);
+    const unsubTyping = listenToTyping(activeChat.id, activeChat.type, currentUser.uid, (users) => {
+      setTypingStatusText(users.length > 0 ? `${users.join(', ')} yazıyor...` : '');
+    });
+    return () => { unsubMessages(); unsubTyping(); };
+  }, [activeChat, activeChannelId, currentUser]);
+
+  useEffect(() => {
+    if (!activeChat) return;
+    const markAsReadIfFocused = () => { if (document.hasFocus()) markMessagesAsRead(activeChat.id, activeChat.type, currentUser.uid, activeChannelId); };
+    markAsReadIfFocused();
+    window.addEventListener('focus', markAsReadIfFocused);
+    let unsubPresence = () => {};
+    if (activeChat.type === 'dm' && activeChat.otherUserId) {
+      unsubPresence = listenToUserPresence(activeChat.otherUserId, ({ presence, lastSeen }) => {
+        setOpponentStatus(presence?.state === 'online' ? getPresenceText(presence.state) : formatLastSeen(lastSeen));
+      });
+    } else if (activeChat.type === 'group') {
+      setOpponentStatus('Grup Sohbeti');
+    }
+    return () => { window.removeEventListener('focus', markAsReadIfFocused); unsubPresence(); };
+  }, [activeChat, activeChannelId, currentUser]);
+  
+  const handleToggleReaction = useCallback((messageId, emoji) => { 
+    if (!activeChat || !currentUser) return;
+    preserveScrollPosition(); 
+    toggleReaction(activeChat.id, activeChat.type, messageId, emoji, currentUser.uid, activeChannelId); 
+  }, [activeChat, activeChannelId, currentUser, preserveScrollPosition]);
+
+  useEffect(() => {
+    const picker = emojiPickerRef.current;
+    if (picker && showEmojiPicker) {
+      const handleEmojiClick = (e) => {
+        if (targetMessageRef.current) handleToggleReaction(targetMessageRef.current.id, e.detail.unicode);
+        setShowEmojiPicker(false);
+      };
+      picker.addEventListener('emoji-click', handleEmojiClick);
+      return () => picker.removeEventListener('emoji-click', handleEmojiClick);
+    }
+  }, [showEmojiPicker, handleToggleReaction]);
+
+  useEffect(() => {
+    let interval;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingTime(prevTime => prevTime + 1);
+      }, 1000);
+    } else {
+      setRecordingTime(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  const formatRecordingTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  };
+
+  const closeAllPopups = () => {
+    if (menu.visible) setMenu(prev => ({ ...prev, visible: false }));
+    if (showEmojiPicker) setShowEmojiPicker(false);
+  };
+
+  const handleShowContextMenu = (x, y, message) => {
+    preserveScrollPosition(); closeAllPopups();
+    const isOwn = message.sender === currentUser.uid;
+    const items = [
+      { label: 'Yanıtla', icon: <IoReturnUpForwardOutline />, onClick: () => setCurrentReply(message) },
+      { label: 'Tepki Ver', icon: <BsEmojiSmile />, onClick: () => handleShowEmojiPicker(x, y, message) },
+      ...(message.text ? [{ label: 'Kopyala', icon: <IoCopyOutline />, onClick: () => navigator.clipboard.writeText(message.text) }] : []),
+      ...(isOwn ? [{ label: 'Sil', icon: <IoTrashOutline />, danger: true, onClick: () => handleDeleteMessage(message.id) }] : []),
+    ];
+    setMenu({ visible: true, x, y, items, target: message });
+  };
+
+  const handleShowEmojiPicker = (x, y, message) => {
+    closeAllPopups();
+    targetMessageRef.current = message;
+    setPickerPosition({ x: Math.max(0, x - 350), y: Math.max(0, y - 460) });
+    setShowEmojiPicker(true);
+  };
+  
+  const handleDeleteMessage = (messageId) => { 
+    if (confirm("Mesajı silmek istediğinizden emin misiniz?")) {
+      preserveScrollPosition(); 
+      deleteMessage(activeChat.id, activeChat.type, messageId, activeChannelId); 
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (activeChat) {
+      setTypingStatus(activeChat.id, activeChat.type, currentUser.uid, currentUser.displayName, true, activeChannelId);
+      typingTimeoutRef.current = setTimeout(() => setTypingStatus(activeChat.id, activeChat.type, currentUser.uid, currentUser.displayName, false, activeChannelId), 2000);
+    }
+  };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !activeChat || !currentUser) return;
+    const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
+    sendMessage(activeChat.id, activeChat.type, sender, { text: newMessage }, currentReply, activeChannelId);
+    setNewMessage(''); 
+    setCurrentReply(null);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    setTypingStatus(activeChat.id, activeChat.type, currentUser.uid, currentUser.displayName, false, activeChannelId);
+  };
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !activeChat) return;
+    setIsUploading(true);
+    try {
+      const result = await uploadToCloudinary(file, { folder: 'chat_media' });
+      const payload = {
+        type: 'media',
+        mediaType: result.resourceType,
+        mediaUrl: result.url,
+        format: result.format,
+        duration: result.duration
+      };
+      const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
+      await sendMessage(activeChat.id, activeChat.type, sender, payload, null, activeChannelId);
+    } catch (error) {
+      alert(`Dosya gönderilemedi: ${error.message}`);
+    } finally {
+      setIsUploading(false); 
+      e.target.value = null;
+    }
+  };
+
+  const handleInitiateCall = () => {
+    if (activeChat.type === 'dm' && currentUser) {
+      initiateCall(activeChat.otherUserId, activeChat.name, currentUser);
+    } else {
+      alert("Grup aramaları yakında eklenecektir.");
+    }
+  };
+  
+  if (!activeChat) {
+    return (
+      <main className={styles.chatArea}>
+        <div className={`${styles.chatView} ${styles.chatWelcome}`}>
+          <img src="/assets/icon.png" alt="Novision Logo" width="120" />
+          <h2>Sohbete Hoş Geldin!</h2>
+          <p>Bir sohbet seçerek mesajlaşmaya başla.</p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className={styles.chatArea} onClick={closeAllPopups}> 
+      <div className={styles.chatView} style={{ display: 'flex' }} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.chatHeader}>
+          <button id="sidebarToggleBtn" className={styles.headerActionBtn} title="Menüyü Aç/Kapat" onClick={onToggleSidebar}><IoMenu size={26} /></button>
+          <img src={activeChat.avatar} alt="Avatar" className={styles.headerAvatar} />
+          <div className={styles.headerInfo}>
+            <span className={styles.headerName}>{activeChat.name}</span>
+            <span className={styles.headerStatus}>{typingStatusText || opponentStatus}</span>
+          </div>
+          <div className={styles.headerActions}>
+            {activeChat.type === 'dm' ? (
+              <>
+                <button onClick={handleInitiateCall} className={styles.headerActionBtn} title="Sesli Ara"><IoCallOutline size={22} /></button>
+                <button onClick={handleInitiateCall} className={styles.headerActionBtn} title="Görüntülü Ara"><IoVideocamOutline size={22} /></button>
+                <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
+              </>
+            ) : (
+              <>
+                <button onClick={handleInitiateCall} className={styles.headerActionBtn} title="Grup Araması Başlat"><IoVideocamOutline size={22} /></button>
+                <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
+                <button className={styles.headerActionBtn} title="Grup Ayarları" onClick={() => setIsGroupSettingsOpen(true)}><IoSettingsOutline size={22} /></button>
+              </>
+            )}
+          </div>
+        </div>
+        
+        <div ref={chatContainerRef} className={styles.chatContainer}>
+          <div className={styles.messageList}>{messages.map(msg => <MessageBubble key={msg.id} message={msg} isOwnMessage={msg.sender === currentUser?.uid} onContextMenu={handleShowContextMenu} onReply={setCurrentReply} onToggleReaction={handleToggleReaction} currentUserId={currentUser?.uid}/>)}</div>
+        </div>
+
+        <div className={styles.inputAreaWrapper}>
+          {currentReply && <ReplyPreview reply={currentReply} onCancel={() => setCurrentReply(null)} />}
+          <form className={styles.inputArea} onSubmit={handleSendMessage}>
+            <input type="file" accept="image/*,video/*,audio/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect}/>
+            {isRecording ? (
+              <div className={styles.recordingBar}>
+                <button type="button" className={`${styles.actionBtn} ${styles.cancelBtn}`} onClick={cancelRecording} title="İptal Et" disabled={isUploading}>
+                    <IoTrashOutline size={22} />
+                </button>
+                <div className={styles.recordingInfo}>
+                    <span className={styles.redDot}></span>
+                    <span className={styles.recordingTime}>{formatRecordingTime(recordingTime)}</span>
+                </div>
+                <button type="button" className={styles.sendBtn} onClick={stopRecording} title="Durdur ve Gönder" disabled={isUploading}>
+                    <IoStopCircleOutline size={28} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <button type="button" className={styles.actionBtn} title="Medya Ekle" onClick={() => fileInputRef.current.click()} disabled={isUploading}>
+                  <IoImageOutline size={24} />
+                </button>
+                <input type="text" placeholder={isUploading ? "Yükleniyor..." : "Mesaj yaz..."} value={newMessage} onChange={handleInputChange} disabled={isUploading} />
+                {newMessage.trim() ? (
+                  <button type="submit" className={styles.sendBtn} title="Gönder" disabled={isUploading}>
+                    <IoSend size={22} />
+                  </button>
+                ) : (
+                  <button type="button" className={styles.micBtn} title="Sesli Mesaj Kaydet" disabled={isUploading} onClick={startRecording}>
+                    <IoMicOutline size={24} />
+                  </button>
+                )}
+              </>
+            )}
+          </form>
+        </div>
+      </div>
+      
+      {menu.visible && <ContextMenu {...menu} onClose={closeAllPopups} />}
+      <emoji-picker ref={emojiPickerRef} class="dark" style={{ display: showEmojiPicker ? 'block' : 'none', position: 'fixed', top: `${pickerPosition.y}px`, left: `${pickerPosition.x}px`, zIndex: 3001 }}></emoji-picker>
+      {activeChat.type === 'group' && <GroupSettingsModal isOpen={isGroupSettingsOpen} onClose={() => setIsGroupSettingsOpen(false)} group={activeChat} currentUser={currentUser}/>}
+    </main>
+  );
 }
 
-.pipWindow {
-    position: fixed;
-    z-index: 1001;
-    width: 320px;
-    height: 240px;
-    bottom: 20px;
-    left: 20px;
-}
-
-.fullWindow {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    /* DÜZELTME 1: Tam ekran modunda pozisyonu sıfırla */
-    position: relative;
-}
-
-.pipHeader {
-    background-color: rgba(0,0,0,0.5);
-    padding: 8px 12px;
-    cursor: move;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 500;
-    user-select: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 3;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.pipContainer:hover .pipHeader {
-    opacity: 1;
-}
-
-.pipControls { display: flex; gap: 4px; }
-.pipControls button {
-    background: none; border: none; color: #fff;
-    cursor: pointer; padding: 4px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-}
-.pipControls button:hover {
-    background-color: rgba(255,255,255,0.2);
-}
-
-.pipContent { 
-    flex-grow: 1; 
-    position: relative;
-    width: 100%;
-    height: 100%;
-    background-color: #111;
-}
-
-.remoteVideoContainer {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* DÜZELTME 1: Tam ekran modunda remote videonun tüm alanı kaplamasını sağla */
-.fullWindow .remoteVideoContainer {
-    position: absolute;
-    top: 0;
-    left: 0;
-}
-
-.remoteVideoContainer video,
-.localVideoContainer video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.waitingText {
-    color: var(--text-secondary);
-}
-
-.localVideoContainer {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    /* DÜZELTME 3: Kendi görüntümüzü biraz küçültelim */
-    width: 90px;
-    height: 120px;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    border-radius: 8px;
-    overflow: hidden;
-    z-index: 2;
-}
-
-.fullWindow .localVideoContainer {
-    width: 120px;
-    height: 160px;
-}
-
-.callControls {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 15px;
-    background-color: rgba(0,0,0,0.6);
-    padding: 10px 20px;
-    border-radius: 50px;
-    z-index: 3;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.pipContainer:hover .callControls {
-    opacity: 1;
-}
-
-.callControls button {
-    background-color: rgba(255,255,255,0.2);
-    border: none;
-    color: #fff;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.callControls button:hover {
-    background-color: rgba(255,255,255,0.4);
-}
-
-.callControls button.danger {
-    background-color: var(--danger-color);
-}
-
-.callControls button.active {
-    background-color: var(--accent-color);
-    color: var(--text-dark);
-}
-
-.endCallBtn {
-    background-color: var(--danger-color) !important;
-    transform: rotate(135deg);
-}
+export default ChatArea;
