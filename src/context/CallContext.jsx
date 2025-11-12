@@ -185,17 +185,13 @@ export const CallProvider = ({ children }) => {
     await remove(ref(db, `calls/${callData.callerId}`));
   };
 
-  // --- DÜZELTİLMİŞ FONKSİYON ---
   const toggleMic = async () => {
     const audioTrack = tracksRef.current.audio;
     if (!audioTrack) return;
 
     try {
-      // Track'in kendi mevcut durumunu oku ve tersini uygula
       const newEnabledState = !audioTrack.enabled;
       await audioTrack.setEnabled(newEnabledState);
-      
-      // Arayüz state'ini, donanımın yeni gerçek durumuna göre güncelle
       setIsMicMuted(!newEnabledState);
     } catch (e) {
       console.error("Mikrofon durumu değiştirilemedi:", e);
@@ -203,17 +199,13 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // --- DÜZELTİLMİŞ FONKSİYON ---
   const toggleCamera = async () => {
     const videoTrack = tracksRef.current.video;
     if (!videoTrack) return;
 
     try {
-      // Track'in kendi mevcut durumunu oku ve tersini uygula
       const newEnabledState = !videoTrack.enabled;
       await videoTrack.setEnabled(newEnabledState);
-      
-      // Arayüz state'ini, donanımın yeni gerçek durumuna göre güncelle
       setIsCameraOff(!newEnabledState);
     } catch (e) {
       console.error("Kamera durumu değiştirilemedi:", e);
@@ -221,8 +213,10 @@ export const CallProvider = ({ children }) => {
     }
   };
   
+  // --- DÜZELTİLMİŞ ve GÜNCELLENMİŞ FONKSİYON ---
   const flipCamera = async () => {
-    if (isCameraOff || !tracksRef.current.video || videoDevices.length < 2) {
+    const videoTrack = tracksRef.current.video;
+    if (!videoTrack || videoDevices.length < 2) {
       if (videoDevices.length < 2) {
         showToast("Değiştirilecek başka kamera yok.", false);
       }
@@ -230,12 +224,20 @@ export const CallProvider = ({ children }) => {
     }
 
     try {
+      // 1. Kamera değiştirme işlemi "setDevice" metodu, track devre dışı iken
+      //    hata verebileceği için, önce track'in aktif olduğundan emin oluyoruz.
+      if (!videoTrack.enabled) {
+        await videoTrack.setEnabled(true);
+      }
+      
+      // 2. Bir sonraki kameraya geçiş yapıyoruz.
       const nextIndex = (currentVideoDeviceIndex + 1) % videoDevices.length;
       const nextDevice = videoDevices[nextIndex];
+      await videoTrack.setDevice(nextDevice.deviceId);
       
-      await tracksRef.current.video.setDevice(nextDevice.deviceId);
-      
+      // 3. State'lerimizi güncelleyerek arayüzü doğru duruma getiriyoruz.
       setCurrentVideoDeviceIndex(nextIndex);
+      setIsCameraOff(false); // Kamera artık kesinlikle açık olduğu için state'i false yapıyoruz.
 
     } catch (e) {
       showToast("Kamera değiştirilemedi.", true);
