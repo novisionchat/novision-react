@@ -1,4 +1,4 @@
-// --- DOSYA: src/context/CallContext.jsx (NİHAİ VE DÜZELTİLMİŞ HALİ) ---
+// --- DOSYA: src/context/CallContext.jsx (TÜM DÜZELTMELER UYGULANMIŞ NİHAİ HALİ) ---
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
@@ -60,7 +60,7 @@ export const CallProvider = ({ children }) => {
     setCurrentVideoDeviceIndex(0);
   }, [client, call]);
 
-  // Gelen aramaları dinleyen useEffect (DÜZELTİLMİŞ HALİ)
+  // Gelen aramaları dinleyen useEffect
   useEffect(() => {
     if (!loggedInUser || !client) return;
 
@@ -68,8 +68,8 @@ export const CallProvider = ({ children }) => {
     const unsubscribe = onValue(incomingCallRef, (snapshot) => {
       if (snapshot.exists()) {
         const callData = snapshot.val();
-        // --- KRİTİK DÜZELTME: Bu aramanın gerçekten bize geldiğini (arananın biz olduğunu) kontrol et ---
-        if (callData.status === 'ringing' && callData.calleeId === loggedInUser.uid && call?.callId !== callData.callId) {
+        // --- NİHAİ DÜZELTME: Sadece gerçekten aranan kişi bensem bu aramayı işleme al ---
+        if (callData.calleeId === loggedInUser.uid && callData.status === 'ringing' && call?.callId !== callData.callId) {
           setCall(callData);
           showToast(`${callData.callerName} sizi arıyor...`, {
             persistent: true,
@@ -82,8 +82,7 @@ export const CallProvider = ({ children }) => {
       }
     });
     return () => unsubscribe();
-  }, [loggedInUser, client, call, acceptCall, declineCall, showToast]);
-
+  }, [loggedInUser, client, call]); // endCall buradan kaldırılabilir, çünkü bu scope'da çağrılmıyor.
 
   // Giden aramanın durumunu (reddedilme/sonlanma) dinle
   useEffect(() => {
@@ -158,7 +157,6 @@ export const CallProvider = ({ children }) => {
         const cameras = await AgoraRTC.getCameras();
         if (cameras.length === 0) showToast("Kamera bulunamadı.", true);
         setVideoDevices(cameras);
-        
         if (cameras.length > 0) {
           videoTrack = await AgoraRTC.createCameraVideoTrack({ deviceId: cameras[0].deviceId });
         }
@@ -187,7 +185,7 @@ export const CallProvider = ({ children }) => {
       status: 'ringing', timestamp: serverTimestamp(), type: callType
     };
     await set(ref(db, `calls/${calleeId}`), callData);
-    await set(ref(db, `calls/${user.uid}`), callData); // Arayan için de senkronizasyon kaydı oluştur
+    await set(ref(db, `calls/${user.uid}`), callData); // Arayanın kendi arama durumunu takip edebilmesi için gerekli
     setCall(callData);
     await joinChannel(callData, user);
   };
