@@ -68,7 +68,7 @@ export const CallProvider = ({ children }) => {
     const unsubscribe = onValue(incomingCallRef, (snapshot) => {
       if (snapshot.exists()) {
         const callData = snapshot.val();
-        // --- NİHAİ DÜZELTME: Sadece gerçekten aranan kişi bensem bu aramayı işleme al ---
+        // DÜZELTME: Sadece gerçekten aranan kişi bensem bu aramayı işleme al
         if (callData.calleeId === loggedInUser.uid && callData.status === 'ringing' && call?.callId !== callData.callId) {
           setCall(callData);
           showToast(`${callData.callerName} sizi arıyor...`, {
@@ -82,7 +82,7 @@ export const CallProvider = ({ children }) => {
       }
     });
     return () => unsubscribe();
-  }, [loggedInUser, client, call]); // endCall buradan kaldırılabilir, çünkü bu scope'da çağrılmıyor.
+  }, [loggedInUser, client, call]);
 
   // Giden aramanın durumunu (reddedilme/sonlanma) dinle
   useEffect(() => {
@@ -177,17 +177,40 @@ export const CallProvider = ({ children }) => {
     }
   };
 
+  // DÜZELTME: Fonksiyona "Stale State" koruması eklendi
   const initiateCall = async (calleeId, calleeName, user, callType) => {
+    // 1. KORUMA: Eğer state'te kalmış eski bir arama varsa,
+    // yeni bir arama başlatmadan önce onu tamamen temizle.
+    if (call) {
+        console.warn("Mevcut arama state'i temiz değil. Yeni arama öncesi endCall zorla çalıştırılıyor.");
+        await endCall();
+    }
+
+    // 2. TEMİZ BAŞLANGIÇ: Yeni aramayı başlat.
     const channelName = push(ref(db, 'calls')).key;
+    if (!channelName) {
+        showToast("Arama kanalı oluşturulamadı.", true);
+        return;
+    }
+
     const callData = {
       callId: channelName, channelName, callerId: user.uid,
       callerName: user.displayName, calleeId, calleeName,
       status: 'ringing', timestamp: serverTimestamp(), type: callType
     };
-    await set(ref(db, `calls/${calleeId}`), callData);
-    await set(ref(db, `calls/${user.uid}`), callData); // Arayanın kendi arama durumunu takip edebilmesi için gerekli
-    setCall(callData);
-    await joinChannel(callData, user);
+
+    try {
+        await set(ref(db, `calls/${calleeId}`), callData);
+        await set(ref(db, `calls/${user.uid}`), callData); // Arayanın kendi arama durumunu takip edebilmesi için gerekli
+        
+        setCall(callData);
+        await joinChannel(callData, user);
+
+    } catch (error) {
+        console.error("Arama başlatma sırasında veritabanı hatası:", error);
+        showToast("Arama başlatılamadı. Lütfen tekrar deneyin.", true);
+        await endCall(); // Hata durumunda her şeyi temizle
+    }
   };
 
   const acceptCall = async (callData) => {
@@ -208,6 +231,7 @@ export const CallProvider = ({ children }) => {
     }
   };
 
+  // DÜZELTME: Toggle fonksiyonlarındaki state senkronizasyon sorunu düzeltildi
   const toggleMic = async () => {
     if (!tracksRef.current.audio) return;
     try {
