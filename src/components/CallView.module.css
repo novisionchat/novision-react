@@ -1,4 +1,4 @@
-/* --- DOSYA: src/components/CallView.module.css (RESPONSIVE YÜKSEKLİK DÜZELTMESİ) --- */
+/* --- DOSYA: src/components/CallView.module.css (GÜNCELLENMİŞ) --- */
 
 .pipContainer {
     display: flex;
@@ -9,13 +9,17 @@
     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
     overflow: hidden;
     color: #fff;
+    /* YENİ: PiP penceresinin boyutu değiştiğinde animasyon ekler */
+    transition: width 0.3s ease, height 0.3s ease;
 }
 
 .pipWindow {
     position: fixed;
     z-index: 1001;
-    width: 300px;
-    height: 400px;
+    /* DEĞİŞİKLİK: Genişlik ve yükseklik artık JS tarafından ayarlanacak.
+       Buraya varsayılan veya minimum değerler koyabiliriz. */
+    width: 300px; 
+    min-height: 225px; /* 4:3 oranı */
     bottom: 20px;
     right: 20px;
 }
@@ -25,7 +29,6 @@
     top: 0;
     left: 0;
     width: 100vw;
-    /* DÜZELTME: 100vh yerine JavaScript'ten gelen değişkeni kullan. Fallback olarak 100vh kalabilir. */
     height: var(--call-height, 100vh);
     z-index: 2000;
     border: none;
@@ -44,13 +47,16 @@
     left: 0;
     right: 0;
     z-index: 10;
-    opacity: 0;
-    transition: opacity 0.3s;
+    /* DEĞİŞİKLİK: Opacity kontrolü artık JS tarafından yapılacak */
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
 }
 
+/* DEĞİŞİKLİK: Artık :hover yerine JS ile kontrol ediliyor.
 .pipContainer:hover .pipHeader {
     opacity: 1;
 }
+*/
 
 .pipControls button {
     background: none; border: none; color: #fff; cursor: pointer;
@@ -71,12 +77,17 @@
     top: 0;
     left: 0;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.remoteVideoContainer video {
+.remoteVideoContainer video,
+.localVideoContainer video {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* DEĞİŞİKLİK: Bu en önemli değişiklik! Videoyu kırpmak yerine sığdırır. */
+    object-fit: contain;
 }
 
 .localVideoContainer {
@@ -101,9 +112,6 @@
 }
 
 .localVideoContainer video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
     transform: scaleX(-1);
 }
 
@@ -127,6 +135,15 @@
     padding: 12px 25px;
     border-radius: 50px;
     z-index: 10;
+    /* DEĞİŞİKLİK: Opacity kontrolü artık JS tarafından yapılacak */
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* YENİ: Kontrolleri gizlemek için kullanılacak sınıf */
+.controlsHidden {
+    opacity: 0;
+    pointer-events: none; /* Gizliyken tıklanmasını engelle */
 }
 
 .callControls button {
@@ -142,6 +159,21 @@
 .callControls button:hover { background-color: rgba(255,255,255,0.4); }
 .callControls button.danger { background-color: #ff4444; }
 .endCallBtn { background-color: #ff4444 !important; transform: rotate(135deg); }
+
+
+/* --- YENİ: PiP Modu İçin Daha Küçük Kontroller --- */
+.pipWindow .callControls {
+    gap: 10px;
+    padding: 8px 15px;
+    bottom: 15px;
+}
+
+.pipWindow .callControls button {
+    width: 40px;
+    height: 40px;
+}
+/* --- YENİ BÖLÜM BİTİŞİ --- */
+
 
 .audioCallContainer {
     width: 100%; height: 100%;
