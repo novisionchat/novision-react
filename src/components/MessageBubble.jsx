@@ -3,6 +3,40 @@ import React, { useRef, useCallback } from 'react';
 import styles from './MessageBubble.module.css';
 import { IoReturnUpBack, IoCheckmark, IoCheckmarkDone } from "react-icons/io5";
 
+// --- YENİ EKLENEN FONKSİYON ---
+// Bu fonksiyon, metin içindeki URL'leri bulur ve onları tıklanabilir <a href="..."> linklerine dönüştürür.
+const renderTextWithLinks = (text) => {
+    // Metin bir string değilse, olduğu gibi geri döndür.
+    if (typeof text !== 'string') {
+        return text;
+    }
+    
+    // URL'leri (http/https) yakalamak için kullanılan Regex.
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, index) => {
+        if (part.match(urlRegex)) {
+            return (
+                <a 
+                    key={index} 
+                    href={part} 
+                    target="_blank" // Linkin yeni bir sekmede açılmasını sağlar
+                    rel="noopener noreferrer" // Güvenlik için gereklidir
+                    // Linkin, uygulamanızın renk paletiyle uyumlu görünmesi için stil ekleyebiliriz.
+                    style={{ color: 'var(--info-color)', textDecoration: 'underline' }}
+                    // Linke tıklandığında mesaj balonuyla ilgili diğer event'lerin tetiklenmesini engeller.
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
+
+
 const StatusIcon = React.memo(({ status }) => {
     if (status === 'read') return <IoCheckmarkDone className={styles.readIcon} size={16} />;
     if (status === 'delivered') return <IoCheckmarkDone size={16} />;
@@ -98,7 +132,9 @@ function MessageBubble({ message, isOwnMessage, onContextMenu, onReply, onToggle
                         <div className={styles.messageText}>
                             {message.type === 'media' ? <MediaContent message={message} /> 
                              : message.type === 'gif' ? <img src={message.gifUrl} alt="GIF" className={styles.gifImage} />
-                             : message.text}
+                             // --- GÜNCELLENEN KISIM ---
+                             // message.text'i doğrudan yazdırmak yerine yeni fonksiyonumuzu kullanıyoruz.
+                             : renderTextWithLinks(message.text)}
                         </div>
                         <div className={styles.messageMeta}>
                             <span className={styles.messageTime}>{formatTime(message.timestamp)}</span>

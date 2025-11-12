@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/ChessGame/ChessGame.jsx ---
+// --- DOSYA: src/components/ChessGame/ChessGame.jsx (TAM VE GÜNCELLENMİŞ HALİ) ---
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
@@ -8,7 +8,7 @@ import { useChat } from '../../context/ChatContext';
 import styles from './ChessGame.module.css';
 import { IoClose, IoExpand, IoContract } from "react-icons/io5";
 import { playSound } from '../../lib/chessSounds';
-import { useDraggable } from '../../hooks/useDraggable'; // GÜNCELLENDİ
+import { useDraggable } from '../../hooks/useDraggable';
 
 const PIECES = {
     w: { p: '♙', r: '♖', n: '♘', b: '♗', q: '♕', k: '♔' },
@@ -38,8 +38,20 @@ const ChessGame = ({ viewMode, setViewMode, activeGameId, setActiveGameId }) => 
     const [checkSquare, setCheckSquare] = useState(null);
     
     const pipRef = useRef(null);
-    const { style } = useDraggable(pipRef); // GÜNCELLENDİ
     const previousGameData = usePrevious(gameData);
+    
+    const initialPipPosition = useMemo(() => {
+        if (typeof window === 'undefined') return { x: 0, y: 0 };
+        const windowWidth = window.innerWidth;
+        const pipWidth = 340;
+        const margin = 20;
+        return {
+            x: windowWidth - pipWidth - margin,
+            y: margin
+        };
+    }, []);
+
+    const { style } = useDraggable(pipRef, initialPipPosition);
 
     const playerColor = useMemo(() => {
         if (!gameData || !currentUser) return null;
@@ -237,7 +249,8 @@ const ChessGame = ({ viewMode, setViewMode, activeGameId, setActiveGameId }) => 
                 );
             }
         }
-        return <div className={styles.chessboard}>{squares}</div>;
+        // Satranç tahtasının sürüklenmesini engelle
+        return <div className={styles.chessboard} data-drag-ignore="true">{squares}</div>;
     };
 
     const renderStatusAndOffers = () => {
@@ -269,7 +282,9 @@ const ChessGame = ({ viewMode, setViewMode, activeGameId, setActiveGameId }) => 
     };
 
     const renderLobby = () => (
-        <div className={styles.lobby}>
+        // Lobi'nin ana kapsayıcısından `data-drag-ignore` kaldırıldı.
+        // Artık lobideki boş alanlardan da sürükleme yapılabilecek.
+        <div className={styles.lobby}> 
             {activeConversation?.type === 'dm' && (
                 <>
                     <div>
@@ -305,6 +320,7 @@ const ChessGame = ({ viewMode, setViewMode, activeGameId, setActiveGameId }) => 
     );
 
     const renderGame = () => (
+        // Oyun alanının ana kapsayıcısından `data-drag-ignore` kaldırıldı.
         <div className={styles.gameContainer}>
             {isResignModalOpen && (
                 <div className={styles.dialogOverlay}>
@@ -355,12 +371,13 @@ const ChessGame = ({ viewMode, setViewMode, activeGameId, setActiveGameId }) => 
     return (
         <div 
             ref={pipRef} 
-            className={`${containerClass} ${viewMode !== 'pip' ? styles.initialPosition : ''}`}
+            className={containerClass}
             style={viewMode === 'pip' ? style : {}}
         >
-            <div className={styles.pipHeader} data-drag-handle>
+            <div className={styles.pipHeader}>
                 <span>Satranç</span>
-                <div className={styles.pipControls}>
+                {/* Header'daki kontrol butonlarının sürüklenmesi engellenmeli */}
+                <div className={styles.pipControls} data-drag-ignore="true">
                     {viewMode === 'pip' ? (
                         <button onClick={() => setViewMode('full')} title="Genişlet"><IoExpand /></button>
                     ) : (

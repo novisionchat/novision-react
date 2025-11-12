@@ -1,6 +1,6 @@
-// --- DOSYA: src/components/CallView.jsx (Tam ve Eksiksiz Hali) ---
+// --- DOSYA: src/components/CallView.jsx (GÜNCELLENMİŞ HALİ) ---
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react'; // --- GÜNCELLENDİ: useMemo eklendi
 import { useCall } from '../context/CallContext.jsx';
 import { useDraggable } from '../hooks/useDraggable.js';
 import styles from './CallView.module.css';
@@ -14,13 +14,29 @@ const CallView = () => {
     const {
         call, viewMode, setViewMode, localTracks, remoteUsers, endCall,
         toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff,
-        videoDevices // --- YENİ ---: Kamera listesini context'ten al
+        videoDevices
     } = useCall();
 
     const pipRef = useRef(null);
-    const { style: draggableStyle } = useDraggable(pipRef);
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
+
+    // --- YENİ ---: Pencerenin başlangıç pozisyonunu sağ üste ayarlamak için.
+    // Tıpkı ChessGame bileşenindeki gibi.
+    const initialPipPosition = useMemo(() => {
+        if (typeof window === 'undefined') return { x: 0, y: 0 };
+        const windowWidth = window.innerWidth;
+        const pipWidth = 280; // .pipWindow'un CSS'teki genişliği
+        const margin = 20;
+        return {
+            x: windowWidth - pipWidth - margin,
+            y: margin
+        };
+    }, []);
+
+    // --- GÜNCELLENDİ ---: useDraggable hook'una hesaplanan başlangıç pozisyonu eklendi.
+    const { style: draggableStyle } = useDraggable(pipRef, initialPipPosition);
+    
 
     const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
     const [controlsVisible, setControlsVisible] = useState(true);
@@ -79,18 +95,26 @@ const CallView = () => {
 
     if (!call || viewMode === 'closed') return null;
 
+    const isVideoCall = call.type === 'video';
+
+    // --- GÜNCELLENDİ ---: Sesli arama PIP penceresini kare yapmak için mantık eklendi.
     const pipDynamicStyle = {};
     if (viewMode === 'pip') {
         const baseWidth = 280;
         pipDynamicStyle.width = `${baseWidth}px`;
-        pipDynamicStyle.height = `${baseWidth / videoAspectRatio}px`;
+        
+        if (isVideoCall) {
+            // Görüntülü arama ise yüksekliği video oranına göre ayarla
+            pipDynamicStyle.height = `${baseWidth / videoAspectRatio}px`;
+        } else {
+            // Sesli arama ise yüksekliği genişlikle aynı yap (kare)
+            pipDynamicStyle.height = `${baseWidth}px`;
+        }
     }
 
     const containerStyle = viewMode === 'pip' ? { ...draggableStyle, ...pipDynamicStyle } : {};
-
     const currentUser = auth.currentUser;
     const otherUserName = currentUser && call.callerId === currentUser.uid ? call.calleeName : call.callerName;
-    const isVideoCall = call.type === 'video';
     const containerClass = `${styles.pipContainer} ${viewMode === 'pip' ? styles.pipWindow : ''} ${viewMode === 'full' ? styles.fullWindow : ''}`;
 
     const renderAudioCallUI = () => (
@@ -146,7 +170,6 @@ const CallView = () => {
                             <button onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className={isCameraOff ? styles.danger : ''}>
                                 {isCameraOff ? <IoVideocamOff size={24} /> : <IoVideocam size={24} />}
                             </button>
-                            {/* --- GÜNCELLENDİ ---: Buton sadece 1'den fazla kamera varsa etkinleştirilir */}
                             <button 
                                 onClick={(e) => { e.stopPropagation(); flipCamera(); }} 
                                 disabled={videoDevices.length < 2}

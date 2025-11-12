@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '../context/ChatContext';
 import { listenForMessages, sendMessage, deleteMessage, toggleReaction } from '../lib/chat';
 import { listenToTyping, setTypingStatus } from '../lib/typing';
-import { markMessagesAsRead } from '../lib/messageStatus';
+// GÜNCELLEME: Her iki fonksiyonu da import ediyoruz.
+import { markMessagesAsRead, listenForAndMarkNewMessagesAsRead } from '../lib/messageStatus';
 import { listenToUserPresence, getPresenceText, formatLastSeen } from '../lib/presence';
 import { uploadToCloudinary } from '../lib/cloudinary';
 import { auth } from '../lib/firebase';
@@ -83,11 +84,25 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     return () => { unsubMessages(); unsubTyping(); };
   }, [activeChat, activeChannelId, currentUser]);
 
+  // --- GÜNCELLENMİŞ useEffect BLOKU ---
   useEffect(() => {
-    if (!activeChat) return;
-    const markAsReadIfFocused = () => { if (document.hasFocus()) markMessagesAsRead(activeChat.id, activeChat.type, currentUser.uid, activeChannelId); };
-    markAsReadIfFocused();
+    if (!activeChat || !currentUser) return;
+
+    // 1. Mevcut (sohbete girildiğindeki) okunmamış mesajları temizle
+    const markAsReadIfFocused = () => {
+      if (document.hasFocus()) {
+        markMessagesAsRead(activeChat.id, activeChat.type, currentUser.uid);
+      }
+    };
+    markAsReadIfFocused(); 
+
+    // 2. YENİ: Yeni gelen mesajları anlık olarak dinle ve okundu olarak işaretle
+    const unsubFromNewMessages = listenForAndMarkNewMessagesAsRead(activeChat.id, activeChat.type, currentUser.uid);
+
+    // 3. Pencereye tekrar odaklanıldığında eski okunmamışları temizlemek için dinleyici ekle
     window.addEventListener('focus', markAsReadIfFocused);
+
+    // 4. Karşı tarafın çevrimiçi durumunu dinle
     let unsubPresence = () => {};
     if (activeChat.type === 'dm' && activeChat.otherUserId) {
       unsubPresence = listenToUserPresence(activeChat.otherUserId, ({ presence, lastSeen }) => {
@@ -96,8 +111,15 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     } else if (activeChat.type === 'group') {
       setOpponentStatus('Grup Sohbeti');
     }
-    return () => { window.removeEventListener('focus', markAsReadIfFocused); unsubPresence(); };
-  }, [activeChat, activeChannelId, currentUser]);
+
+    // --- TEMİZLİK FONKSİYONU ---
+    // Component kaldırıldığında veya sohbet değiştiğinde tüm dinleyicileri kapat
+    return () => {
+      window.removeEventListener('focus', markAsReadIfFocused);
+      unsubPresence();
+      unsubFromNewMessages(); // YENİ: Anlık mesaj dinleyicisini kapat
+    };
+  }, [activeChat, currentUser]); // activeChannelId'a gerek yoksa kaldırılabilir.
   
   const handleToggleReaction = useCallback((messageId, emoji) => { 
     if (!activeChat || !currentUser) return;
@@ -137,9 +159,11 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     if (menu.visible) setMenu(prev => ({ ...prev, visible: false }));
     if (showEmojiPicker) setShowEmojiPicker(false);
   };
-
+  
   const handleShowContextMenu = (x, y, message) => {
-    preserveScrollPosition(); closeAllPopups();
+    preserveScrollPosition();
+    closeAllPopups();
+  
     const isOwn = message.sender === currentUser.uid;
     const items = [
       { label: 'Yanıtla', icon: <IoReturnUpForwardOutline />, onClick: () => setCurrentReply(message) },
@@ -147,7 +171,22 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
       ...(message.text ? [{ label: 'Kopyala', icon: <IoCopyOutline />, onClick: () => navigator.clipboard.writeText(message.text) }] : []),
       ...(isOwn ? [{ label: 'Sil', icon: <IoTrashOutline />, danger: true, onClick: () => handleDeleteMessage(message.id) }] : []),
     ];
-    setMenu({ visible: true, x, y, items, target: message });
+  
+    const ITEM_HEIGHT = 40; 
+    const MENU_PADDING = 10;
+    const estimatedMenuHeight = (items.length * ITEM_HEIGHT) + MENU_PADDING;
+    const windowHeight = window.innerHeight;
+  
+    let adjustedY = y;
+    if (y + estimatedMenuHeight > windowHeight) {
+      adjustedY = y - estimatedMenuHeight;
+    }
+    
+    if (adjustedY < 0) {
+      adjustedY = 10;
+    }
+  
+    setMenu({ visible: true, x, y: adjustedY, items, target: message });
   };
 
   const handleShowEmojiPicker = (x, y, message) => {

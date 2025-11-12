@@ -23,13 +23,15 @@ function ConversationItem({ conversation, onSelect, onContextMenu, isActive }) {
     return {
       onTouchStart: handleTouchStart,
       onTouchEnd: handleTouchEnd,
-      onTouchMove: handleTouchEnd, // Kaydırma yaparsa iptal et
+      onTouchMove: handleTouchEnd,
     };
   };
   
   const longPressEvents = useLongPress(onContextMenu);
 
   const presenceState = conversation.presence?.state || 'offline';
+  // GÜNCELLEME: okunmamış mesaj sayısını alıyoruz
+  const unreadCount = conversation.unreadCount || 0;
 
   return (
     <li
@@ -48,6 +50,12 @@ function ConversationItem({ conversation, onSelect, onContextMenu, isActive }) {
         <span className={styles.name}>{conversation.name}</span>
         <span className={styles.preview}>{conversation.lastMessage}</span>
       </div>
+      {/* YENİ: Okunmamış mesaj sayacı rozeti */}
+      {unreadCount > 0 && (
+        <div className={styles.meta}>
+          <span className={styles.unreadBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+        </div>
+      )}
     </li>
   );
 }

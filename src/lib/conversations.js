@@ -1,4 +1,5 @@
-// src/lib/conversations.js
+// --- DOSYA: src/lib/conversations.js ---
+
 import { db } from './firebase.js';
 import { ref, onValue, query, orderByChild, limitToLast } from "firebase/database";
 import { listenToUserPresence } from './presence.js';
@@ -32,7 +33,6 @@ export function listenForConversations(userId, callback) {
         callback(allConversations);
     };
 
-    // --- YARDIMCI DİNLEYİCİ FONKSİYONLARI (Değişiklik yok) ---
     function listenForLastMessage(convoId, type) {
         const path = type === 'dm' ? `dms/${convoId}/messages` : `groups/${convoId}/channels/general/messages`;
         const messagesRef = ref(db, path);
@@ -63,48 +63,65 @@ export function listenForConversations(userId, callback) {
         });
     }
 
-    // --- ANA VERİ İŞLEME MANTIĞI ---
+    let dmListFromDb = {};
 
-    let dmListFromDb = {}; // DM listesini geçici olarak burada tut
-
-    // 1. ADIM: Önce kullanıcının DM listesini dinle ve sakla
     const unsubDms = onValue(userConversationsRef, (snapshot) => {
         dmListFromDb = snapshot.exists() ? snapshot.val() : {};
-        // Kullanıcı önbelleği zaten doluysa, DM'leri hemen işle
         if (Object.keys(userCache).length > 0) {
             processDms();
         }
     });
 
-    // 2. ADIM: Kullanıcı bilgilerini (cache) dinle
     const unsubUserCache = onValue(userSearchIndexRef, (snapshot) => {
         if (snapshot.exists()) {
             userCache = snapshot.val();
-            // Kullanıcı önbelleği yüklendiğinde, saklanan DM listesini işle
             processDms();
         }
     });
     
-    // DM'leri işleyen ana fonksiyon
     function processDms() {
-        if (!dmListFromDb || !userCache) return; // Gerekli veriler olmadan çalışma
+        if (!dmListFromDb || !userCache) return;
 
-        // Önceki dinleyicileri temizle (kullanıcı silinmişse vb.)
-        dmConversations.clear();
+        const currentDmIds = new Set(Object.keys(dmListFromDb));
+        const existingDmIds = new Set(dmConversations.keys());
+
+        // Silinmiş DM'leri ve dinleyicileri temizle
+        for (const dmId of existingDmIds) {
+            if (!currentDmIds.has(dmId)) {
+                if (lastMessageListeners[dmId]) {
+                    lastMessageListeners[dmId]();
+                    delete lastMessageListeners[dmId];
+                }
+                if (presenceListeners[dmId]) {
+                    presenceListeners[dmId]();
+                    delete presenceListeners[dmId];
+                }
+                dmConversations.delete(dmId);
+            }
+        }
 
         Object.keys(dmListFromDb).forEach(dmId => {
             const otherUserId = dmId.replace(userId, '').replace('_', '');
             const otherUserData = userCache[otherUserId];
 
-            // SADECE EŞLEŞEN KULLANICI BİLGİSİ VARSA LİSTEYE EKLE
             if (otherUserData) {
+                // GÜNCELLEME: Mevcut sohbet bilgisini al veya yeni oluştur
+                const conversationData = dmListFromDb[dmId];
+                const existingConvo = dmConversations.get(dmId) || {};
+
                 dmConversations.set(dmId, {
-                    id: dmId, type: 'dm', otherUserId: otherUserId,
+                    ...existingConvo, // Varsa eski bilgileri koru (lastMessage gibi)
+                    id: dmId, 
+                    type: 'dm', 
+                    otherUserId: otherUserId,
                     name: `${otherUserData.username}#${otherUserData.tag}`,
                     avatar: otherUserData.avatar,
-                    timestamp: dmListFromDb[dmId].lastMessageTimestamp,
-                    lastMessage: "Yükleniyor...",
-                    presence: { state: 'offline' },
+                    timestamp: conversationData.lastMessageTimestamp,
+                    lastMessage: existingConvo.lastMessage || "Yükleniyor...",
+                    presence: existingConvo.presence || { state: 'offline' },
+                    // --- KRİTİK DÜZELTME BURADA ---
+                    // unreadCount bilgisini veritabanından gelen veriden alıp ekliyoruz.
+                    unreadCount: conversationData.unreadCount || 0,
                 });
 
                 if (!lastMessageListeners[dmId]) listenForLastMessage(dmId, 'dm');
@@ -114,8 +131,6 @@ export function listenForConversations(userId, callback) {
         combineAndRender();
     }
 
-
-    // 3. ADIM: Grupları dinle (Bu kısım zaten çalışıyor, değişiklik yok)
     const unsubGroups = onValue(userGroupsRef, (snapshot) => {
         if (!snapshot.exists()) {
             Object.values(groupDataListeners).forEach(unsub => unsub());
@@ -125,29 +140,43 @@ export function listenForConversations(userId, callback) {
             return;
         }
         
-        const groupIds = snapshot.val();
-        const currentGroupIds = new Set(Object.keys(groupIds));
-        const existingGroupIds = new Set(Object.keys(groupDataListeners));
+        const groupListFromDb = snapshot.val();
+        const currentGroupIds = new Set(Object.keys(groupListFromDb));
+        const existingGroupIds = new Set(groupConversations.keys());
 
         for (const groupId of existingGroupIds) {
             if (!currentGroupIds.has(groupId)) {
-                groupDataListeners[groupId]();
-                delete groupDataListeners[groupId];
+                if (groupDataListeners[groupId]) {
+                    groupDataListeners[groupId]();
+                    delete groupDataListeners[groupId];
+                }
+                 if (lastMessageListeners[groupId]) {
+                    lastMessageListeners[groupId]();
+                    delete lastMessageListeners[groupId];
+                }
                 groupConversations.delete(groupId);
             }
         }
 
         for (const groupId of currentGroupIds) {
-            if (!existingGroupIds.has(groupId)) {
+            // GÜNCELLEME: Grup verisini ve unreadCount'ı al
+            const groupDataFromUser = groupListFromDb[groupId];
+
+            if (!groupConversations.has(groupId)) {
                 const groupRef = ref(db, `groups/${groupId}`);
                 groupDataListeners[groupId] = onValue(groupRef, (groupSnap) => {
                     if (groupSnap.exists()) {
-                        const group = groupSnap.val();
+                        const groupMeta = groupSnap.val().meta;
                         groupConversations.set(groupId, {
-                            id: groupId, type: 'group', name: group.meta.name,
-                            avatar: group.meta.avatar || '/assets/group-icon.png',
-                            timestamp: group.meta.lastMessageTimestamp || group.meta.createdAt,
+                            id: groupId, 
+                            type: 'group', 
+                            name: groupMeta.name,
+                            avatar: groupMeta.avatar || '/assets/group-icon.png',
+                            timestamp: groupDataFromUser.lastMessageTimestamp || groupMeta.createdAt,
                             lastMessage: "Gruba hoş geldin!",
+                            // --- KRİTİK DÜZELTME BURADA ---
+                            // unreadCount bilgisini veritabanından gelen veriden alıp ekliyoruz.
+                            unreadCount: groupDataFromUser.unreadCount || 0,
                         });
                         if (!lastMessageListeners[groupId]) listenForLastMessage(groupId, 'group');
                         combineAndRender();
@@ -156,12 +185,18 @@ export function listenForConversations(userId, callback) {
                         combineAndRender();
                     }
                 });
+            } else {
+                 // Zaten var olan grup için sadece unreadCount'u güncelle
+                 const existingGroup = groupConversations.get(groupId);
+                 if (existingGroup) {
+                    existingGroup.unreadCount = groupDataFromUser.unreadCount || 0;
+                    existingGroup.timestamp = groupDataFromUser.lastMessageTimestamp || existingGroup.timestamp;
+                 }
             }
         }
         combineAndRender();
     });
 
-    // Temizleme fonksiyonu
     return () => {
         unsubDms();
         unsubUserCache();
