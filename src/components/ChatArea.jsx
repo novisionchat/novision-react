@@ -7,7 +7,8 @@ import { listenToTyping, setTypingStatus } from '../lib/typing';
 import { markMessagesAsRead } from '../lib/messageStatus';
 import { listenToUserPresence, getPresenceText, formatLastSeen } from '../lib/presence';
 import { uploadToCloudinary } from '../lib/cloudinary';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+import { ref, onValue } from 'firebase/database';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import styles from './ChatArea.module.css';
 import { 
@@ -23,10 +24,11 @@ import ReplyPreview from './ReplyPreview';
 import useAutoScroll from '../hooks/useAutoScroll';
 import GroupSettingsModal from './GroupSettingsModal';
 import { useCall } from '../context/CallContext.jsx';
+import GroupCallIndicator from './GroupCallIndicator';
 
 function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const { activeConversation: activeChat, activeChannelId } = useChat();
-  const { initiateCall } = useCall();
+  const { initiateCall, endCall, call } = useCall();
   const currentUser = auth.currentUser;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -39,6 +41,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 });
   const [recordingTime, setRecordingTime] = useState(0);
+  const [activeGroupCall, setActiveGroupCall] = useState(null);
 
   const chatContainerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -95,6 +98,18 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     }
     return () => { window.removeEventListener('focus', markAsReadIfFocused); unsubPresence(); };
   }, [activeChat, activeChannelId, currentUser]);
+
+  useEffect(() => {
+    if (!activeChat || activeChat.type !== 'group') {
+        setActiveGroupCall(null);
+        return;
+    }
+    const callRef = ref(db, `groups/${activeChat.id}/activeCall`);
+    const unsubscribe = onValue(callRef, (snapshot) => {
+        setActiveGroupCall(snapshot.exists() ? snapshot.val() : null);
+    });
+    return () => unsubscribe();
+  }, [activeChat]);
   
   const handleToggleReaction = useCallback((messageId, emoji) => { 
     if (!activeChat || !currentUser) return;
@@ -201,8 +216,14 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const handleInitiateCall = (callType) => {
     if (activeChat.type === 'dm' && currentUser) {
       initiateCall(activeChat.otherUserId, activeChat.name, currentUser, callType);
-    } else {
-      alert("Grup aramaları yakında eklenecektir.");
+    } else if (activeChat.type === 'group' && currentUser) {
+      initiateCall(activeChat.id, activeChat.name, currentUser, 'group');
+    }
+  };
+
+  const handleLeaveGroupCall = () => {
+    if (call?.type === 'group' && call.groupId === activeChat.id) {
+        endCall();
     }
   };
   
@@ -237,7 +258,9 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
               </>
             ) : (
               <>
-                <button onClick={() => handleInitiateCall('video')} className={styles.headerActionBtn} title="Grup Araması Başlat"><IoVideocamOutline size={22} /></button>
+                <button onClick={() => handleInitiateCall('group')} className={styles.headerActionBtn} title={activeGroupCall ? "Grup Aramasına Katıl" : "Grup Araması Başlat"}>
+                    <IoVideocamOutline size={22} />
+                </button>
                 <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
                 <button className={styles.headerActionBtn} title="Grup Ayarları" onClick={() => setIsGroupSettingsOpen(true)}><IoSettingsOutline size={22} /></button>
               </>
@@ -245,6 +268,16 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
           </div>
         </div>
         
+        {activeGroupCall && activeChat.type === 'group' && (
+            <GroupCallIndicator
+                groupId={activeChat.id}
+                callData={activeGroupCall}
+                onJoin={() => handleInitiateCall('group')}
+                onLeave={handleLeaveGroupCall}
+                currentUserId={currentUser.uid}
+            />
+        )}
+
         <div ref={chatContainerRef} className={styles.chatContainer}>
           <div className={styles.messageList}>{messages.map(msg => <MessageBubble key={msg.id} message={msg} isOwnMessage={msg.sender === currentUser?.uid} onContextMenu={handleShowContextMenu} onReply={setCurrentReply} onToggleReaction={handleToggleReaction} currentUserId={currentUser?.uid}/>)}</div>
         </div>

@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/CallView.jsx (Tam ve Eksiksiz Hali) ---
+// --- DOSYA: src/components/CallView.jsx ---
 
 import React, { useRef, useEffect, useState } from 'react';
 import { useCall } from '../context/CallContext.jsx';
@@ -9,12 +9,13 @@ import {
     IoVideocamOff, IoVideocam, IoCall, IoSync
 } from "react-icons/io5";
 import { auth } from '../lib/firebase.js';
+import GroupCallGrid from './GroupCallGrid.jsx';
 
 const CallView = () => {
     const {
         call, viewMode, setViewMode, localTracks, remoteUsers, endCall,
         toggleMic, toggleCamera, flipCamera, isMicMuted, isCameraOff,
-        videoDevices // --- YENİ ---: Kamera listesini context'ten al
+        videoDevices
     } = useCall();
 
     const pipRef = useRef(null);
@@ -83,14 +84,16 @@ const CallView = () => {
     if (viewMode === 'pip') {
         const baseWidth = 280;
         pipDynamicStyle.width = `${baseWidth}px`;
-        pipDynamicStyle.height = `${baseWidth / videoAspectRatio}px`;
+        const currentAspectRatio = call.type === 'dm' ? videoAspectRatio : 16 / 9;
+        pipDynamicStyle.height = `${baseWidth / currentAspectRatio}px`;
     }
 
     const containerStyle = viewMode === 'pip' ? { ...draggableStyle, ...pipDynamicStyle } : {};
 
     const currentUser = auth.currentUser;
-    const otherUserName = currentUser && call.callerId === currentUser.uid ? call.calleeName : call.callerName;
-    const isVideoCall = call.type === 'video';
+    const isGroupCall = call.type === 'group';
+    const otherUserName = isGroupCall ? call.groupName : (currentUser && call.callerId === currentUser.uid ? call.calleeName : call.callerName);
+    const isVideoCall = call.type === 'video' || isGroupCall;
     const containerClass = `${styles.pipContainer} ${viewMode === 'pip' ? styles.pipWindow : ''} ${viewMode === 'full' ? styles.fullWindow : ''}`;
 
     const renderAudioCallUI = () => (
@@ -100,7 +103,51 @@ const CallView = () => {
             <span>Sesli Görüşme</span>
         </div>
     );
+    
+    // Grup araması tam ekran ise, Grid'i render et
+    if (isGroupCall && viewMode === 'full') {
+        return (
+            <div
+                ref={pipRef}
+                className={containerClass}
+                style={containerStyle}
+                onClick={showControls}
+                onMouseMove={showControls}
+            >
+                <div className={`${styles.pipHeader} ${!controlsVisible ? styles.controlsHidden : ''}`} data-drag-handle>
+                    <span>{otherUserName}</span>
+                    <div className={styles.pipControls}>
+                        <button onClick={(e) => { e.stopPropagation(); setViewMode('pip'); }} title="Küçült"><IoContract /></button>
+                        <button onClick={(e) => { e.stopPropagation(); endCall(); }} title="Kapat"><IoClose /></button>
+                    </div>
+                </div>
+                
+                <GroupCallGrid 
+                    call={call} 
+                    localTracks={localTracks} 
+                    remoteUsers={remoteUsers} 
+                    currentUserId={currentUser?.uid} 
+                />
 
+                <div className={`${styles.callControls} ${!controlsVisible ? styles.controlsHidden : ''}`}>
+                    <button onClick={(e) => { e.stopPropagation(); toggleMic(); }} className={isMicMuted ? styles.danger : ''}>
+                        {isMicMuted ? <IoMicOff size={24} /> : <IoMic size={24} />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className={isCameraOff ? styles.danger : ''}>
+                        {isCameraOff ? <IoVideocamOff size={24} /> : <IoVideocam size={24} />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); flipCamera(); }} disabled={videoDevices.length < 2} title={videoDevices.length < 2 ? "Başka kamera yok" : "Kamerayı Değiştir"}>
+                        <IoSync size={24} />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); endCall(); }} className={styles.endCallBtn}>
+                        <IoCall size={24} />
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // DM Araması veya Grup Araması PiP Görünümü
     return (
         <div
             ref={pipRef}
@@ -110,7 +157,7 @@ const CallView = () => {
             onMouseMove={showControls}
         >
             <div className={`${styles.pipHeader} ${!controlsVisible ? styles.controlsHidden : ''}`} data-drag-handle>
-                <span>{otherUserName} ile görüşme</span>
+                <span>{otherUserName}</span>
                 <div className={styles.pipControls}>
                     {viewMode === 'pip' ? (
                         <button onClick={(e) => { e.stopPropagation(); setViewMode('full'); }} title="Genişlet"><IoExpand /></button>
@@ -125,7 +172,7 @@ const CallView = () => {
                     <>
                         <div className={styles.remoteVideoContainer}>
                              <video ref={remoteVideoRef} playsInline autoPlay />
-                            {remoteUsers.length === 0 && <div className={styles.waitingText}>Bağlanılıyor...</div>}
+                             {remoteUsers.length === 0 && <div className={styles.waitingText}>{isGroupCall ? "Grup Araması" : "Bağlanılıyor..."}</div>}
                         </div>
                         {localTracks.video && (
                           <div className={styles.localVideoContainer}>
@@ -146,12 +193,7 @@ const CallView = () => {
                             <button onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className={isCameraOff ? styles.danger : ''}>
                                 {isCameraOff ? <IoVideocamOff size={24} /> : <IoVideocam size={24} />}
                             </button>
-                            {/* --- GÜNCELLENDİ ---: Buton sadece 1'den fazla kamera varsa etkinleştirilir */}
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); flipCamera(); }} 
-                                disabled={videoDevices.length < 2}
-                                title={videoDevices.length < 2 ? "Başka kamera yok" : "Kamerayı Değiştir"}
-                            >
+                            <button onClick={(e) => { e.stopPropagation(); flipCamera(); }} disabled={videoDevices.length < 2} title={videoDevices.length < 2 ? "Başka kamera yok" : "Kamerayı Değiştir"}>
                                 <IoSync size={24} />
                             </button>
                         </>

@@ -59,6 +59,8 @@
     width: 100%;
     height: 100%;
     background-color: #111;
+    display: flex;
+    flex-direction: column;
 }
 
 .remoteVideoContainer {
@@ -147,6 +149,7 @@
 }
 
 .callControls button:hover { background-color: rgba(255,255,255,0.4); }
+.callControls button:disabled { opacity: 0.5; cursor: not-allowed; }
 .callControls button.danger { background-color: #ff4444; }
 .endCallBtn { background-color: #ff4444 !important; transform: rotate(135deg); }
 
@@ -181,4 +184,9 @@
     0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
     70% { box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); }
     100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+/* YENİ EKLENEN KURAL: Grup aramasında tam ekrandayken küçük yerel videoyu gizle */
+.fullWindow .localVideoContainer {
+    display: none;
 }

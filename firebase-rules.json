@@ -1,20 +1,12 @@
-// --- DOSYA: firebase-rules.json (GÜNCELLENMİŞ) ---
-
 {
   "rules": {
     "users": {
       "$uid": {
         ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid",
-        
-        "username": { ".validate": "newData.isString() && newData.val().length > 0" },
-        "tag": { ".validate": "newData.isNumber()" },
-        "email": { ".validate": "newData.isString() && newData.val().contains('@')" },
-        "avatar": { ".validate": "newData.isString()" },
-        "status": { ".validate": "newData.isString()" },
-
         "contacts": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" },
-        "conversations": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" },
+        // DÜZELTME: Sohbet listesine başkalarının yazmasına izin ver (Yeni mesaj gelince liste güncellensin diye)
+        "conversations": { ".read": "$uid === auth.uid", ".write": "auth != null" },
         "presence": { ".read": "auth != null" },
         "groups": { ".write": "auth != null" }
       }
@@ -22,12 +14,12 @@
     "userSearchIndex": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['username', 'tag', 'avatar'])"
+        ".write": "auth != null && auth.uid === $uid"
       }
     },
     "dms": {
       "$dmId": {
+        // DM'i sadece içindeki üyeler okuyabilir ve yazabilir
         ".read": "auth != null && $dmId.contains(auth.uid)",
         ".write": "auth != null && $dmId.contains(auth.uid)",
         "messages": { ".indexOn": "timestamp" }
@@ -54,22 +46,17 @@
         }
       }
     },
-
-    // --- YENİ EKLENEN BÖLÜM BURASI ---
     "calls": {
       "$uid": {
-        // Bir kullanıcı sadece kendi arama verisini okuyabilir (dinleyebilir).
+        // DÜZELTME: Kişi kendi gelen aramalarını okur, herkes ona arama gönderebilir (yazabilir)
         ".read": "$uid === auth.uid",
-        // Oturum açmış herhangi bir kullanıcı, başka bir kullanıcı için arama başlatabilir (yazabilir).
         ".write": "auth != null"
       }
     },
-    // --- YENİ BÖLÜM BİTİŞİ ---
-
     "challenges": { "$uid": { ".read": "$uid === auth.uid", "$challenger_game_id": { ".write": "auth != null" } } },
     "chess_games": {
       ".read": "auth != null",
-      "$gameId": { ".write": "auth != null && (newData.child('players/w').val() === auth.uid || newData.child('players/b').val() === auth.uid || !data.exists())" }
+      "$gameId": { ".write": "auth != null" }
     }
   }
 }
