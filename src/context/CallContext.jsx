@@ -2,10 +2,9 @@
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
-import { ref, set, onValue, remove, serverTimestamp } from 'firebase/database';
+import { ref, set, onValue, remove, serverTimestamp, push } from 'firebase/database';
 import { useToast } from './ToastContext.jsx';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import * as groupMgmt from '../lib/groupManagement';
 
 const CallContext = createContext();
 export const useCall = () => useContext(CallContext);
@@ -24,9 +23,10 @@ export const CallProvider = ({ children }) => {
   const { showToast } = useToast();
   const loggedInUser = auth.currentUser;
   const tracksRef = useRef({ audio: null, video: null });
-  const [videoDevices, setVideoDevices] = useState([]);
-  const [currentVideoDeviceIndex, setCurrentVideoDeviceIndex] = useState(0);
-  const callListenerRef = useRef(null);
+
+  // --- YENİ EKLENEN STATE'LER ---
+  const [videoDevices, setVideoDevices] = useState([]); // Mevcut kameraların listesi
+  const [currentVideoDeviceIndex, setCurrentVideoDeviceIndex] = useState(0); // Aktif kameranın listedeki indeksi
 
   useEffect(() => {
     const agoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -34,100 +34,42 @@ export const CallProvider = ({ children }) => {
   }, []);
 
   const endCall = useCallback(async () => {
-    const currentCall = call; // O anki call state'ini al, çünkü state asenkron güncellenir
-    if (callListenerRef.current) {
-        callListenerRef.current();
-        callListenerRef.current = null;
-    }
+    if (!client) return;
     
-    tracksRef.current.audio?.stop();
-    tracksRef.current.audio?.close();
-    tracksRef.current.video?.stop();
-    tracksRef.current.video?.close();
+    const currentTracks = tracksRef.current;
+    currentTracks.audio?.stop();
+    currentTracks.audio?.close();
+    currentTracks.video?.stop();
+    currentTracks.video?.close();
     tracksRef.current = { audio: null, video: null };
-    setLocalTracks({ audio: null, video: null });
 
-    if (client?.connectionState === 'CONNECTED') {
+    if (client.connectionState === 'CONNECTED') {
       await client.leave();
     }
     
-    if (currentCall) {
-        if (currentCall.type === 'dm') {
-            await remove(ref(db, `calls/${currentCall.callerId}`));
-            await remove(ref(db, `calls/${currentCall.calleeId}`));
-        } else if (currentCall.type === 'group' && loggedInUser) {
-            await groupMgmt.removeGroupCallParticipant(currentCall.groupId, loggedInUser.uid);
-        }
+    if (call) {
+      remove(ref(db, `calls/${call.callerId}`));
+      remove(ref(db, `calls/${call.calleeId}`));
     }
 
+    setLocalTracks({ audio: null, video: null });
     setRemoteUsers([]);
     setCall(null);
     setViewMode('closed');
     setIsMicMuted(false);
     setIsCameraOff(false);
-  }, [client, call, loggedInUser]);
-
-  const joinChannel = useCallback(async (callData, user) => {
-    if (!client || client.connectionState === 'CONNECTED') return;
-    try {
-      const token = await getToken(callData.channelName, user.uid);
-      if (!token) throw new Error("Geçersiz token.");
-      await client.join(AGORA_APP_ID, callData.channelName, token, user.uid);
-      
-      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-      let videoTrack = null;
-      
-      if (callData.type === 'video' || callData.type === 'group') {
-        const cameras = await AgoraRTC.getCameras();
-        setVideoDevices(cameras);
-        if (cameras.length > 0) {
-          videoTrack = await AgoraRTC.createCameraVideoTrack({ deviceId: cameras[0].deviceId });
-        }
-      }
-      
-      tracksRef.current = { audio: audioTrack, video: videoTrack };
-      setLocalTracks({ audio: audioTrack, video: videoTrack });
-      
-      const tracksToPublish = [audioTrack];
-      if (videoTrack) tracksToPublish.push(videoTrack);
-      await client.publish(tracksToPublish);
-      
-      if (callData.type === 'group') {
-        await groupMgmt.updateGroupCallParticipant(callData.groupId, user.uid, user.displayName, !!videoTrack, !!audioTrack);
-      }
-      setViewMode('pip');
-    } catch (error) {
-      console.error("Kanala katılım hatası:", error);
-      showToast("Aramaya katılamadı: " + error.message, true);
-      await endCall();
-    }
-  }, [client, endCall]);
-
-  const acceptCall = useCallback(async (callData) => {
-    const user = auth.currentUser;
-    if (!user) return;
-    
-    const activeCallData = { ...callData, status: 'active' };
-    await set(ref(db, `calls/${callData.callerId}`), activeCallData);
-    await set(ref(db, `calls/${user.uid}`), activeCallData);
-    setCall(activeCallData);
-    await joinChannel(activeCallData, user);
-  }, [joinChannel]);
-
-  const declineCall = useCallback(async (callData) => {
-    await remove(ref(db, `calls/${callData.calleeId}`));
-    await remove(ref(db, `calls/${callData.callerId}`));
-    setCall(null);
-  }, []);
+    // --- YENİ ---: State'leri temizle
+    setVideoDevices([]);
+    setCurrentVideoDeviceIndex(0);
+  }, [client, call]);
 
   useEffect(() => {
     if (!loggedInUser || !client) return;
-    const userCallRef = ref(db, `calls/${loggedInUser.uid}`);
-    if (callListenerRef.current) callListenerRef.current();
 
-    callListenerRef.current = onValue(userCallRef, (snapshot) => {
-      const callData = snapshot.val();
-      if (callData) {
+    const incomingCallRef = ref(db, `calls/${loggedInUser.uid}`);
+    const unsubscribe = onValue(incomingCallRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const callData = snapshot.val();
         if (callData.status === 'ringing' && call?.callId !== callData.callId) {
           setCall(callData);
           showToast(`${callData.callerName} sizi arıyor...`, {
@@ -137,19 +79,11 @@ export const CallProvider = ({ children }) => {
               { text: "Reddet", onClick: () => declineCall(callData) }
             ]
           });
-        } else if (callData.status === 'active' && call?.status !== 'active') {
-          setCall(callData);
-          joinChannel(callData, loggedInUser);
         }
-      } else {
-        if(call && call.calleeId === loggedInUser.uid) endCall();
       }
     });
-
-    return () => {
-      if (callListenerRef.current) callListenerRef.current();
-    };
-  }, [loggedInUser, client, call, acceptCall, declineCall, joinChannel, endCall]);
+    return () => unsubscribe();
+  }, [loggedInUser, client, call, endCall]);
 
   useEffect(() => {
     if (!client) return;
@@ -181,64 +115,124 @@ export const CallProvider = ({ children }) => {
       if (!response.ok) throw new Error('Token alınamadı');
       return (await response.json()).token;
     } catch (error) {
+      console.error("Token alma hatası:", error);
       showToast("Arama sunucusuna bağlanılamadı.", true);
       return null;
     }
   };
 
-  const initiateCall = async (targetId, targetName, user, callType) => {
-    if (call) return showToast("Zaten bir arama yapıyorsunuz.", true);
-    if (callType === 'group') {
-        const callData = await groupMgmt.startGroupCall(targetId, targetName, user);
-        setCall(callData);
-        await joinChannel(callData, user);
-    } else {
-        const channelName = user.uid + "_" + Date.now();
-        const callData = {
-          callId: channelName, channelName, callerId: user.uid,
-          callerName: user.displayName, calleeId: targetId, calleeName: targetName,
-          status: 'ringing', timestamp: serverTimestamp(), type: callType
-        };
-        await set(ref(db, `calls/${targetId}`), callData);
-        await set(ref(db, `calls/${user.uid}`), callData); // Arayan da dinleyebilsin diye
+  // --- joinChannel fonksiyonu GÜNCELLENDİ ---
+  const joinChannel = async (callData, user) => {
+    if (!client) return;
+    try {
+      const token = await getToken(callData.channelName, user.uid);
+      if (!token) throw new Error("Geçersiz token.");
+      await client.join(AGORA_APP_ID, callData.channelName, token, user.uid);
+      
+      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+      let videoTrack = null;
+      
+      if (callData.type === 'video') {
+        // Kamera listesini al ve state'e kaydet
+        const cameras = await AgoraRTC.getCameras();
+        if (cameras.length === 0) {
+          showToast("Kamera bulunamadı.", true);
+        }
+        setVideoDevices(cameras);
+        
+        // Eğer en az bir kamera varsa, ilkini kullanarak video track oluştur
+        if (cameras.length > 0) {
+          videoTrack = await AgoraRTC.createCameraVideoTrack({
+            deviceId: cameras[0].deviceId
+          });
+        }
+      }
+      
+      tracksRef.current = { audio: audioTrack, video: videoTrack };
+      setLocalTracks({ audio: audioTrack, video: videoTrack });
+      
+      const tracksToPublish = [audioTrack];
+      if (videoTrack) tracksToPublish.push(videoTrack);
+      await client.publish(tracksToPublish);
+      
+      setViewMode('pip');
+    } catch (error) {
+      console.error("Kanala katılım hatası:", error);
+      showToast("Aramaya katılamadı: " + error.message, true);
+      await endCall();
     }
+  };
+
+  const initiateCall = async (calleeId, calleeName, user, callType) => {
+    const channelName = push(ref(db, 'calls')).key;
+    const callData = {
+      callId: channelName, channelName, callerId: user.uid,
+      callerName: user.displayName, calleeId, calleeName,
+      status: 'ringing', timestamp: serverTimestamp(), type: callType
+    };
+    await set(ref(db, `calls/${calleeId}`), callData);
+    setCall(callData);
+    await joinChannel(callData, user);
+  };
+
+  const acceptCall = async (callData) => {
+    const user = auth.currentUser;
+    if (!user) return;
+    await remove(ref(db, `calls/${user.uid}`));
+    const activeCallData = { ...callData, status: 'active' };
+    setCall(activeCallData);
+    await joinChannel(activeCallData, user);
+    await set(ref(db, `calls/${callData.callerId}`), activeCallData);
+  };
+
+  const declineCall = async (callData) => {
+    await remove(ref(db, `calls/${callData.calleeId}`));
+    await remove(ref(db, `calls/${callData.callerId}`));
   };
 
   const toggleMic = async () => {
     if (!tracksRef.current.audio) return;
-    const newState = !isMicMuted;
-    await tracksRef.current.audio.setEnabled(!newState);
-    setIsMicMuted(newState);
-    if (call?.type === 'group' && loggedInUser) {
-        await groupMgmt.updateGroupCallParticipant(call.groupId, loggedInUser.uid, loggedInUser.displayName, !isCameraOff, !newState);
-    }
+    await tracksRef.current.audio.setEnabled(!isMicMuted); // Mantığı düzelttim
+    setIsMicMuted(!isMicMuted);
   };
 
   const toggleCamera = async () => {
     if (!tracksRef.current.video) return;
-    const newState = !isCameraOff;
-    await tracksRef.current.video.setEnabled(!newState);
-    setIsCameraOff(newState);
-    if (call?.type === 'group' && loggedInUser) {
-        await groupMgmt.updateGroupCallParticipant(call.groupId, loggedInUser.uid, loggedInUser.displayName, !newState, !isMicMuted);
-    }
+    await tracksRef.current.video.setEnabled(!isCameraOff); // Mantığı düzelttim
+    setIsCameraOff(!isCameraOff);
   };
 
+  // --- flipCamera fonksiyonu TAMAMEN YENİLENDİ ---
   const flipCamera = async () => {
-    if (isCameraOff || !tracksRef.current.video || videoDevices.length < 2) return;
+    if (isCameraOff || !tracksRef.current.video || videoDevices.length < 2) {
+      if (videoDevices.length < 2) {
+        showToast("Değiştirilecek başka kamera yok.", false);
+      }
+      return;
+    }
+
     try {
+      // Bir sonraki kameranın indeksini hesapla (döngüsel)
       const nextIndex = (currentVideoDeviceIndex + 1) % videoDevices.length;
-      await tracksRef.current.video.setDevice(videoDevices[nextIndex].deviceId);
+      const nextDevice = videoDevices[nextIndex];
+      
+      // Sonraki kameranın deviceId'sini kullanarak kamerayı değiştir
+      await tracksRef.current.video.setDevice(nextDevice.deviceId);
+      
+      // Aktif kamera indeksini güncelle
       setCurrentVideoDeviceIndex(nextIndex);
+
     } catch (e) {
       showToast("Kamera değiştirilemedi.", true);
+      console.error("Kamera çevirme hatası:", e);
     }
   };
 
   const value = {
     call, viewMode, setViewMode, localTracks, remoteUsers,
     initiateCall, endCall, toggleMic, toggleCamera, flipCamera,
-    isMicMuted, isCameraOff, videoDevices
+    isMicMuted, isCameraOff,
+    videoDevices // --- YENİ ---: View'ın kullanabilmesi için dışa aktar
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;

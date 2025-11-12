@@ -7,8 +7,7 @@ import { listenToTyping, setTypingStatus } from '../lib/typing';
 import { markMessagesAsRead } from '../lib/messageStatus';
 import { listenToUserPresence, getPresenceText, formatLastSeen } from '../lib/presence';
 import { uploadToCloudinary } from '../lib/cloudinary';
-import { auth, db } from '../lib/firebase';
-import { ref, onValue } from 'firebase/database';
+import { auth } from '../lib/firebase';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import styles from './ChatArea.module.css';
 import { 
@@ -24,11 +23,10 @@ import ReplyPreview from './ReplyPreview';
 import useAutoScroll from '../hooks/useAutoScroll';
 import GroupSettingsModal from './GroupSettingsModal';
 import { useCall } from '../context/CallContext.jsx';
-import GroupCallIndicator from './GroupCallIndicator';
 
 function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const { activeConversation: activeChat, activeChannelId } = useChat();
-  const { initiateCall, endCall, call } = useCall();
+  const { initiateCall } = useCall();
   const currentUser = auth.currentUser;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -41,7 +39,6 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 });
   const [recordingTime, setRecordingTime] = useState(0);
-  const [activeGroupCall, setActiveGroupCall] = useState(null);
 
   const chatContainerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -94,25 +91,10 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
         setOpponentStatus(presence?.state === 'online' ? getPresenceText(presence.state) : formatLastSeen(lastSeen));
       });
     } else if (activeChat.type === 'group') {
-      setOpponentStatus(`${activeChat.memberCount || ''} Üye`);
+      setOpponentStatus('Grup Sohbeti');
     }
     return () => { window.removeEventListener('focus', markAsReadIfFocused); unsubPresence(); };
   }, [activeChat, activeChannelId, currentUser]);
-
-  useEffect(() => {
-    if (!activeChat || activeChat.type !== 'group') {
-        setActiveGroupCall(null);
-        return;
-    }
-    const callRef = ref(db, `groups/${activeChat.id}/activeCall`);
-    const unsubscribe = onValue(callRef, (snapshot) => {
-        setActiveGroupCall(snapshot.exists() ? snapshot.val() : null);
-    });
-    return () => {
-        unsubscribe();
-        setActiveGroupCall(null);
-    };
-  }, [activeChat]);
   
   const handleToggleReaction = useCallback((messageId, emoji) => { 
     if (!activeChat || !currentUser) return;
@@ -219,15 +201,8 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const handleInitiateCall = (callType) => {
     if (activeChat.type === 'dm' && currentUser) {
       initiateCall(activeChat.otherUserId, activeChat.name, currentUser, callType);
-    } else if (activeChat.type === 'group' && currentUser) {
-      if (call && call.groupId === activeChat.id) return; // Zaten aramadaysa tekrar başlatma
-      initiateCall(activeChat.id, activeChat.name, currentUser, 'group');
-    }
-  };
-
-  const handleLeaveGroupCall = () => {
-    if (call?.type === 'group' && call.groupId === activeChat.id) {
-        endCall();
+    } else {
+      alert("Grup aramaları yakında eklenecektir.");
     }
   };
   
@@ -262,9 +237,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
               </>
             ) : (
               <>
-                <button onClick={() => handleInitiateCall('group')} className={styles.headerActionBtn} title={activeGroupCall ? "Grup Aramasına Katıl" : "Grup Araması Başlat"}>
-                    <IoVideocamOutline size={22} />
-                </button>
+                <button onClick={() => handleInitiateCall('video')} className={styles.headerActionBtn} title="Grup Araması Başlat"><IoVideocamOutline size={22} /></button>
                 <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
                 <button className={styles.headerActionBtn} title="Grup Ayarları" onClick={() => setIsGroupSettingsOpen(true)}><IoSettingsOutline size={22} /></button>
               </>
@@ -272,15 +245,6 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
           </div>
         </div>
         
-        {activeGroupCall && activeChat.type === 'group' && (
-            <GroupCallIndicator
-                callData={activeGroupCall}
-                onJoin={() => handleInitiateCall('group')}
-                onLeave={handleLeaveGroupCall}
-                currentUserId={currentUser.uid}
-            />
-        )}
-
         <div ref={chatContainerRef} className={styles.chatContainer}>
           <div className={styles.messageList}>{messages.map(msg => <MessageBubble key={msg.id} message={msg} isOwnMessage={msg.sender === currentUser?.uid} onContextMenu={handleShowContextMenu} onReply={setCurrentReply} onToggleReaction={handleToggleReaction} currentUserId={currentUser?.uid}/>)}</div>
         </div>
@@ -315,7 +279,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
       
       {menu.visible && <ContextMenu {...menu} onClose={closeAllPopups} />}
       <emoji-picker ref={emojiPickerRef} class="dark" style={{ display: showEmojiPicker ? 'block' : 'none', position: 'fixed', top: `${pickerPosition.y}px`, left: `${pickerPosition.x}px`, zIndex: 3001 }}></emoji-picker>
-      {activeChat.type === 'group' && isGroupSettingsOpen && <GroupSettingsModal isOpen={isGroupSettingsOpen} onClose={() => setIsGroupSettingsOpen(false)} group={activeChat} currentUser={currentUser}/>}
+      {activeChat.type === 'group' && <GroupSettingsModal isOpen={isGroupSettingsOpen} onClose={() => setIsGroupSettingsOpen(false)} group={activeChat} currentUser={currentUser}/>}
     </main>
   );
 }
