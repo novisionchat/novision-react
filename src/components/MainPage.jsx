@@ -1,10 +1,10 @@
-// --- DOSYA: src/components/MainPage.jsx (NİHAİ VE DOĞRU VERSİYON) ---
+// --- DOSYA: src/components/MainPage.jsx  ---
 
 import React, { useState, useEffect } from 'react';
 import LeftPanel from './LeftPanel';
 import ChatArea from './ChatArea';
-import ChessGame from './ChessGame/ChessGame';
-import CallView from './CallView.jsx'; // DÜZELTME: Klasör yolu kaldırıldı, uzantı eklendi
+import ChessGame from './ChessGame/ChessGame.jsx';
+import CallView from './CallView.jsx';
 import { initializePresence } from '../lib/presence';
 import { auth, db } from '../lib/firebase';
 import { ref, onValue, update, remove } from 'firebase/database';
@@ -78,7 +78,15 @@ function MainPage() {
     setChessViewMode(prev => prev === 'closed' ? 'pip' : 'closed');
   };
 
-  const isFullScreen = chessViewMode === 'full' || callViewMode === 'full';
+  const renderMainContent = () => {
+    if (chessViewMode === 'full') {
+      return <ChessGame viewMode={chessViewMode} setViewMode={setChessViewMode} activeGameId={activeGameId} setActiveGameId={setActiveGameId} />;
+    }
+    if (callViewMode === 'full') {
+      return <CallView />;
+    }
+    return <ChatArea onToggleSidebar={handleToggleSidebar} onChessButtonClick={handleChessButtonClick} />;
+  };
 
   return (
     <div id="main-page" className="page">
@@ -86,23 +94,7 @@ function MainPage() {
         onConversationSelect={closeSidebarOnMobile}
       />
       
-      {!isFullScreen && (
-        <ChatArea 
-          onToggleSidebar={handleToggleSidebar} 
-          onChessButtonClick={handleChessButtonClick}
-        />
-      )}
-
-      {chessViewMode === 'full' && (
-        <ChessGame 
-          viewMode={chessViewMode} 
-          setViewMode={setChessViewMode}
-          activeGameId={activeGameId}
-          setActiveGameId={setActiveGameId}
-        />
-      )}
-
-      {callViewMode === 'full' && <CallView />}
+      {renderMainContent()}
 
       {chessViewMode === 'pip' && (
         <ChessGame 
@@ -112,8 +104,8 @@ function MainPage() {
           setActiveGameId={setActiveGameId}
         />
       )}
-
-      {(callViewMode === 'pip' || callViewMode === 'full') && <CallView />}
+      
+      {(callViewMode === 'pip' || callViewMode === 'full') && callViewMode !== 'closed' && <CallView />}
     </div>
   );
 }

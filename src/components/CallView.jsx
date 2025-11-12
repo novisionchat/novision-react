@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/CallView.jsx (VANILLA JS'DEN UYARLANDI) ---
+// --- DOSYA: src/components/CallView.jsx ---
 
 import React, { useRef, useEffect } from 'react';
 import { useCall } from '../context/CallContext.jsx';
@@ -38,7 +38,16 @@ const CallView = () => {
 
     const currentUser = auth.currentUser;
     const otherUserName = currentUser && call.callerId === currentUser.uid ? call.calleeName : call.callerName;
+    const isVideoCall = call.type === 'video';
     const containerClass = `${styles.pipContainer} ${viewMode === 'pip' ? styles.pipWindow : ''} ${viewMode === 'full' ? styles.fullWindow : ''}`;
+
+    const renderAudioCallUI = () => (
+        <div className={styles.audioCallContainer}>
+            <img src="/assets/icon.png" alt="Avatar" className={styles.audioCallAvatar} />
+            <h3>{otherUserName}</h3>
+            <span>Sesli Görüşme</span>
+        </div>
+    );
 
     return (
         <div ref={pipRef} className={containerClass} style={viewMode === 'pip' ? style : {}}>
@@ -54,19 +63,29 @@ const CallView = () => {
                 </div>
             </div>
             <div className={styles.pipContent}>
-                <div className={styles.remoteVideoContainer} ref={remoteVideoRef}>
-                    {remoteUsers.length === 0 && <div className={styles.waitingText}>Bağlanılıyor...</div>}
-                </div>
-                <div className={styles.localVideoContainer} ref={localVideoRef}></div>
+                {isVideoCall ? (
+                    <>
+                        <div className={styles.remoteVideoContainer} ref={remoteVideoRef}>
+                            {remoteUsers.length === 0 && <div className={styles.waitingText}>Bağlanılıyor...</div>}
+                        </div>
+                        <div className={styles.localVideoContainer} ref={localVideoRef}></div>
+                    </>
+                ) : (
+                    renderAudioCallUI()
+                )}
                 
                 <div className={styles.callControls}>
                     <button onClick={toggleMic} className={isMicMuted ? styles.danger : ''}>
                         {isMicMuted ? <IoMicOff size={24} /> : <IoMic size={24} />}
                     </button>
-                    <button onClick={toggleCamera} className={isCameraOff ? styles.danger : ''}>
-                        {isCameraOff ? <IoVideocamOff size={24} /> : <IoVideocam size={24} />}
-                    </button>
-                    <button onClick={flipCamera}><IoSync size={24} /></button>
+                    {isVideoCall && (
+                        <>
+                            <button onClick={toggleCamera} className={isCameraOff ? styles.danger : ''}>
+                                {isCameraOff ? <IoVideocamOff size={24} /> : <IoVideocam size={24} />}
+                            </button>
+                            <button onClick={flipCamera}><IoSync size={24} /></button>
+                        </>
+                    )}
                     <button onClick={endCall} className={styles.endCallBtn}>
                         <IoCall size={24} />
                     </button>

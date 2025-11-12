@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/ChatArea.jsx (TAM VE NİHAİ VERSİYON) ---
+// --- DOSYA: src/components/ChatArea.jsx ---
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '../context/ChatContext';
@@ -56,15 +56,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
         folder: 'voice_messages',
         resource_type: 'video'
       });
-
-      const payload = {
-          type: 'media',
-          mediaType: 'audio',
-          mediaUrl: result.url,
-          format: result.format,
-          duration: result.duration,
-      };
-
+      const payload = { type: 'media', mediaType: 'audio', mediaUrl: result.url, format: result.format, duration: result.duration };
       const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
       await sendMessage(activeChat.id, activeChat.type, sender, payload, null, activeChannelId);
     } catch (error) {
@@ -125,9 +117,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   useEffect(() => {
     let interval;
     if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingTime(prevTime => prevTime + 1);
-      }, 1000);
+      interval = setInterval(() => setRecordingTime(prevTime => prevTime + 1), 1000);
     } else {
       setRecordingTime(0);
     }
@@ -197,13 +187,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     setIsUploading(true);
     try {
       const result = await uploadToCloudinary(file, { folder: 'chat_media' });
-      const payload = {
-        type: 'media',
-        mediaType: result.resourceType,
-        mediaUrl: result.url,
-        format: result.format,
-        duration: result.duration
-      };
+      const payload = { type: 'media', mediaType: result.resourceType, mediaUrl: result.url, format: result.format, duration: result.duration };
       const sender = { uid: currentUser.uid, displayName: currentUser.displayName };
       await sendMessage(activeChat.id, activeChat.type, sender, payload, null, activeChannelId);
     } catch (error) {
@@ -214,9 +198,9 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     }
   };
 
-  const handleInitiateCall = () => {
+  const handleInitiateCall = (callType) => {
     if (activeChat.type === 'dm' && currentUser) {
-      initiateCall(activeChat.otherUserId, activeChat.name, currentUser);
+      initiateCall(activeChat.otherUserId, activeChat.name, currentUser, callType);
     } else {
       alert("Grup aramaları yakında eklenecektir.");
     }
@@ -247,13 +231,13 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
           <div className={styles.headerActions}>
             {activeChat.type === 'dm' ? (
               <>
-                <button onClick={handleInitiateCall} className={styles.headerActionBtn} title="Sesli Ara"><IoCallOutline size={22} /></button>
-                <button onClick={handleInitiateCall} className={styles.headerActionBtn} title="Görüntülü Ara"><IoVideocamOutline size={22} /></button>
+                <button onClick={() => handleInitiateCall('audio')} className={styles.headerActionBtn} title="Sesli Ara"><IoCallOutline size={22} /></button>
+                <button onClick={() => handleInitiateCall('video')} className={styles.headerActionBtn} title="Görüntülü Ara"><IoVideocamOutline size={22} /></button>
                 <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
               </>
             ) : (
               <>
-                <button onClick={handleInitiateCall} className={styles.headerActionBtn} title="Grup Araması Başlat"><IoVideocamOutline size={22} /></button>
+                <button onClick={() => handleInitiateCall('video')} className={styles.headerActionBtn} title="Grup Araması Başlat"><IoVideocamOutline size={22} /></button>
                 <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
                 <button className={styles.headerActionBtn} title="Grup Ayarları" onClick={() => setIsGroupSettingsOpen(true)}><IoSettingsOutline size={22} /></button>
               </>
@@ -271,31 +255,21 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
             <input type="file" accept="image/*,video/*,audio/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect}/>
             {isRecording ? (
               <div className={styles.recordingBar}>
-                <button type="button" className={`${styles.actionBtn} ${styles.cancelBtn}`} onClick={cancelRecording} title="İptal Et" disabled={isUploading}>
-                    <IoTrashOutline size={22} />
-                </button>
+                <button type="button" className={`${styles.actionBtn} ${styles.cancelBtn}`} onClick={cancelRecording} title="İptal Et" disabled={isUploading}><IoTrashOutline size={22} /></button>
                 <div className={styles.recordingInfo}>
                     <span className={styles.redDot}></span>
                     <span className={styles.recordingTime}>{formatRecordingTime(recordingTime)}</span>
                 </div>
-                <button type="button" className={styles.sendBtn} onClick={stopRecording} title="Durdur ve Gönder" disabled={isUploading}>
-                    <IoStopCircleOutline size={28} />
-                </button>
+                <button type="button" className={styles.sendBtn} onClick={stopRecording} title="Durdur ve Gönder" disabled={isUploading}><IoStopCircleOutline size={28} /></button>
               </div>
             ) : (
               <>
-                <button type="button" className={styles.actionBtn} title="Medya Ekle" onClick={() => fileInputRef.current.click()} disabled={isUploading}>
-                  <IoImageOutline size={24} />
-                </button>
+                <button type="button" className={styles.actionBtn} title="Medya Ekle" onClick={() => fileInputRef.current.click()} disabled={isUploading}><IoImageOutline size={24} /></button>
                 <input type="text" placeholder={isUploading ? "Yükleniyor..." : "Mesaj yaz..."} value={newMessage} onChange={handleInputChange} disabled={isUploading} />
                 {newMessage.trim() ? (
-                  <button type="submit" className={styles.sendBtn} title="Gönder" disabled={isUploading}>
-                    <IoSend size={22} />
-                  </button>
+                  <button type="submit" className={styles.sendBtn} title="Gönder" disabled={isUploading}><IoSend size={22} /></button>
                 ) : (
-                  <button type="button" className={styles.micBtn} title="Sesli Mesaj Kaydet" disabled={isUploading} onClick={startRecording}>
-                    <IoMicOutline size={24} />
-                  </button>
+                  <button type="button" className={styles.micBtn} title="Sesli Mesaj Kaydet" disabled={isUploading} onClick={startRecording}><IoMicOutline size={24} /></button>
                 )}
               </>
             )}
