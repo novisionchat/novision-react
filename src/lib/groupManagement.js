@@ -73,16 +73,19 @@ export async function removeGroupCallParticipant(groupId, userId) {
 
     const callData = snapshot.val();
     const updates = {};
-    updates[`groups/${groupId}/activeCall/participants/${userId}`] = null;
     
-    // DÜZELTME: Eğer bu ayrılan kişiyle birlikte katılımcı sayısı 1 veya daha az ise aramayı bitir.
+    // Katılımcıyı sil
+    updates[`/groups/${groupId}/activeCall/participants/${userId}`] = null;
+    
+    // Eğer bu ayrılan kişiyle birlikte katılımcı sayısı 1 veya daha az ise aramayı tamamen bitir.
     const participantCount = callData.participants ? Object.keys(callData.participants).length : 0;
     if (participantCount <= 1) {
-        updates[`groups/${groupId}/activeCall`] = null;
+        updates[`/groups/${groupId}/activeCall`] = null;
     }
 
     await update(ref(db), updates);
 }
+
 
 export async function updateGroupInfo(groupId, newName) {
     const updates = {};
@@ -120,8 +123,8 @@ export async function leaveGroup(groupId, userId) {
     if (!snapshot.exists()) throw new Error("Grup bulunamadı.");
     const members = snapshot.val().meta.members;
     if (members[userId] === 'creator') {
-        const otherAdmins = Object.keys(members).filter(id => members[id] === 'admin' || members[id] === 'creator');
-        if (otherAdmins.length <= 1 && Object.keys(members).length > 1) {
+        const otherAdmins = Object.keys(members).filter(id => (members[id] === 'admin' || members[id] === 'creator') && id !== userId);
+        if (otherAdmins.length < 1 && Object.keys(members).length > 1) {
              throw new Error("Ayrılmak için önce başka bir üyeyi yönetici yapmalısınız.");
         }
     }

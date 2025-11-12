@@ -76,7 +76,6 @@ const CallView = () => {
 
     if (!call || viewMode === 'closed') return null;
 
-    // DÜZELTME: PiP boyutu arama tipine göre ayarlandı
     const pipDynamicStyle = {};
     if (viewMode === 'pip') {
         const baseWidth = 280;
@@ -137,7 +136,6 @@ const CallView = () => {
                     <>
                         <div className={styles.remoteVideoContainer}>
                              <video ref={remoteVideoRef} playsInline autoPlay />
-                             {/* DÜZELTME: Grup aramasında PiP ekranında bekleme metni gösterilir */}
                              {isGroupCall && <div className={styles.waitingText}>Grup Araması</div>}
                              {call.type === 'dm' && remoteUsers.length === 0 && <div className={styles.waitingText}>Bağlanılıyor...</div>}
                         </div>

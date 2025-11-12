@@ -10,22 +10,10 @@
     box-sizing: border-box;
 }
 
-/* Dinamik Grid Düzenleri */
-.groupCallGrid.single {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-}
-.groupCallGrid.duo {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: 1fr;
-}
-.groupCallGrid.quad {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-}
-.groupCallGrid.large-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-}
+.groupCallGrid.single { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.groupCallGrid.duo { grid-template-columns: repeat(2, 1fr); grid-template-rows: 1fr; }
+.groupCallGrid.quad { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+.groupCallGrid.large-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
 .videoTile {
     position: relative;
@@ -40,19 +28,18 @@
     color: white;
 }
 
-.videoTile > div:first-child {
+.videoPlayer {
     width: 100%;
     height: 100%;
 }
 
-.videoTile video {
-    width: 100%;
-    height: 100%;
+.videoPlayer > div, .videoPlayer video {
+    width: 100% !important;
+    height: 100% !important;
     object-fit: cover;
-    display: block;
 }
 
-.localVideoTile video {
+.localVideoTile .videoPlayer video {
     transform: scaleX(-1);
 }
 
@@ -70,16 +57,11 @@
     justify-content: space-between;
     align-items: center;
     transition: opacity 0.3s;
+    pointer-events: none;
 }
 
-.micStatus {
-    display: flex;
-    align-items: center;
-    color: white;
-}
-.micStatus.muted {
-    color: var(--danger-color);
-}
+.micStatus { display: flex; align-items: center; color: white; }
+.micStatus.muted { color: var(--danger-color); }
 
 .avatarPlaceholder {
     width: 80px;

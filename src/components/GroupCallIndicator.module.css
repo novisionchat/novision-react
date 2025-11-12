@@ -1,96 +1,68 @@
-/* src/components/GroupCallGrid.module.css */
-.groupCallGrid {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    gap: 10px;
-    padding: 10px;
-    background-color: var(--chat-bg);
-    overflow: hidden;
-    box-sizing: border-box;
-}
-
-/* Dinamik Grid Düzenleri */
-.groupCallGrid.single {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-}
-.groupCallGrid.duo {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: 1fr;
-}
-.groupCallGrid.quad {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-}
-.groupCallGrid.large-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-}
-
-.videoTile {
-    position: relative;
-    background-color: #1a1a1a;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    overflow: hidden;
+/* src/components/GroupCallIndicator.module.css */
+.callIndicatorContainer {
     display: flex;
-    justify-content: center;
     align-items: center;
-    min-height: 150px;
-    color: white;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background-color: var(--panel-bg);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    color: var(--text-primary);
+    gap: 15px;
 }
 
-/* DÜZELTME: Agora'nın video elementini içerecek olan div */
-.videoPlayer {
-    width: 100%;
-    height: 100%;
+.infoSection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
 }
 
-.videoPlayer video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover;
+.icon {
+    color: var(--accent-color);
+    display: flex;
+    flex-shrink: 0;
 }
 
-.localVideoTile .videoPlayer video {
-    transform: scaleX(-1);
+.textSection {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.userInfoOverlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
-    padding: 12px 10px;
-    color: white;
+.title {
     font-weight: 500;
     font-size: 0.9em;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: opacity 0.3s;
-    pointer-events: none; /* Üzerindeki tıklamaları engelle */
+    white-space: nowrap;
 }
 
-.micStatus {
-    display: flex;
-    align-items: center;
-    color: white;
-}
-.micStatus.muted {
-    color: var(--danger-color);
+.participants {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.avatarPlaceholder {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
+.actionButton {
     background-color: var(--accent-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 2.2em;
-    font-weight: bold;
     color: var(--text-dark);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9em;
+    transition: filter 0.2s;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.actionButton:hover {
+    filter: brightness(1.1);
+}
+
+.leaveButton {
+    background-color: var(--danger-color);
+    color: white;
 }

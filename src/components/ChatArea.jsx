@@ -94,7 +94,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
         setOpponentStatus(presence?.state === 'online' ? getPresenceText(presence.state) : formatLastSeen(lastSeen));
       });
     } else if (activeChat.type === 'group') {
-      setOpponentStatus('Grup Sohbeti');
+      setOpponentStatus(`${activeChat.memberCount || ''} Üye`);
     }
     return () => { window.removeEventListener('focus', markAsReadIfFocused); unsubPresence(); };
   }, [activeChat, activeChannelId, currentUser]);
@@ -108,7 +108,10 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     const unsubscribe = onValue(callRef, (snapshot) => {
         setActiveGroupCall(snapshot.exists() ? snapshot.val() : null);
     });
-    return () => unsubscribe();
+    return () => {
+        unsubscribe();
+        setActiveGroupCall(null);
+    };
   }, [activeChat]);
   
   const handleToggleReaction = useCallback((messageId, emoji) => { 
@@ -217,6 +220,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     if (activeChat.type === 'dm' && currentUser) {
       initiateCall(activeChat.otherUserId, activeChat.name, currentUser, callType);
     } else if (activeChat.type === 'group' && currentUser) {
+      if (call && call.groupId === activeChat.id) return; // Zaten aramadaysa tekrar başlatma
       initiateCall(activeChat.id, activeChat.name, currentUser, 'group');
     }
   };
@@ -270,7 +274,6 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
         
         {activeGroupCall && activeChat.type === 'group' && (
             <GroupCallIndicator
-                groupId={activeChat.id}
                 callData={activeGroupCall}
                 onJoin={() => handleInitiateCall('group')}
                 onLeave={handleLeaveGroupCall}
@@ -312,7 +315,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
       
       {menu.visible && <ContextMenu {...menu} onClose={closeAllPopups} />}
       <emoji-picker ref={emojiPickerRef} class="dark" style={{ display: showEmojiPicker ? 'block' : 'none', position: 'fixed', top: `${pickerPosition.y}px`, left: `${pickerPosition.x}px`, zIndex: 3001 }}></emoji-picker>
-      {activeChat.type === 'group' && <GroupSettingsModal isOpen={isGroupSettingsOpen} onClose={() => setIsGroupSettingsOpen(false)} group={activeChat} currentUser={currentUser}/>}
+      {activeChat.type === 'group' && isGroupSettingsOpen && <GroupSettingsModal isOpen={isGroupSettingsOpen} onClose={() => setIsGroupSettingsOpen(false)} group={activeChat} currentUser={currentUser}/>}
     </main>
   );
 }

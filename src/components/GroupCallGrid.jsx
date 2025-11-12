@@ -5,17 +5,15 @@ import { IoMicOff, IoMic } from "react-icons/io5";
 import { get, ref } from 'firebase/database';
 import { db } from '../lib/firebase';
 
-// Not: React.memo, prop'lar değişmediği sürece bileşenin yeniden render edilmesini engeller.
 const ParticipantTile = React.memo(({ user, isLocal, localTracks }) => {
     const [name, setName] = useState(user.name || 'Kullanıcı');
-    // DÜZELTME: Agora'ya ID göndermek için video konteynerinin ID'si
     const videoContainerId = `participant-video-${user.uid}`;
 
     useEffect(() => {
         const videoTrack = isLocal ? localTracks.video : user.videoTrack;
         if (videoTrack) {
-            // DÜZELTME: Agora'ya DOM elementi yerine ID'yi veriyoruz.
-            videoTrack.play(videoContainerId);
+            // Agora'ya DOM elementi yerine ID'yi (string) veriyoruz.
+            videoTrack.play(videoContainerId, { fit: 'cover' });
         }
     }, [user.uid, user.videoTrack, isLocal, localTracks.video, videoContainerId]);
 
@@ -28,17 +26,14 @@ const ParticipantTile = React.memo(({ user, isLocal, localTracks }) => {
     }, [user.uid, user.name]);
 
     const videoTrack = isLocal ? localTracks.video : user.videoTrack;
-    const isVideoOff = !videoTrack || (isLocal ? !localTracks.video.enabled : !user.hasVideo);
+    const isVideoOff = !videoTrack || (isLocal ? !localTracks.video?.enabled : !user.hasVideo);
     const isMicMuted = isLocal ? (localTracks.audio ? !localTracks.audio.enabled : true) : !user.hasAudio;
     const initials = (name || 'K').substring(0, 2).toUpperCase();
 
     return (
         <div className={`${styles.videoTile} ${isLocal ? styles.localVideoTile : ''}`}>
-            {/* DÜZELTME: Benzersiz ID'ye sahip konteyner div */}
             <div id={videoContainerId} className={styles.videoPlayer} style={{ display: isVideoOff ? 'none' : 'block' }}></div>
-            
             {isVideoOff && <div className={styles.avatarPlaceholder}>{initials}</div>}
-            
             <div className={styles.userInfoOverlay}>
                 <span>{name}{isLocal ? " (Siz)" : ""}</span>
                 <span className={`${styles.micStatus} ${isMicMuted ? styles.muted : ''}`}>
@@ -49,10 +44,8 @@ const ParticipantTile = React.memo(({ user, isLocal, localTracks }) => {
     );
 });
 
-
 const GroupCallGrid = ({ call, localTracks, remoteUsers, currentUserId }) => {
     const containerRef = useRef(null);
-    // DÜZELTME: State'i daha basit ve etkili yönetmek için allParticipants
     const [allParticipants, setAllParticipants] = useState([]);
 
     useEffect(() => {
@@ -60,10 +53,7 @@ const GroupCallGrid = ({ call, localTracks, remoteUsers, currentUserId }) => {
             uid: currentUserId,
             name: call.participants[currentUserId]?.name,
             isLocal: true,
-            hasVideo: localTracks.video?.enabled,
-            hasAudio: localTracks.audio?.enabled,
         };
-
         const remoteParticipants = remoteUsers.map(user => ({
             uid: user.uid,
             name: call.participants[user.uid]?.name,
@@ -73,13 +63,9 @@ const GroupCallGrid = ({ call, localTracks, remoteUsers, currentUserId }) => {
             hasVideo: user.hasVideo,
             hasAudio: user.hasAudio,
         }));
-        
-        // DÜZELTME: Yerel ve uzak kullanıcıları birleştirip state'e yaz
         setAllParticipants([localUser, ...remoteParticipants]);
-
     }, [call.participants, localTracks, remoteUsers, currentUserId]);
     
-    // Grid düzenini dinamik olarak ayarla
     useEffect(() => {
         if (containerRef.current) {
             const count = allParticipants.length;
@@ -87,11 +73,9 @@ const GroupCallGrid = ({ call, localTracks, remoteUsers, currentUserId }) => {
             if (count === 1) gridClass = styles.single;
             else if (count === 2) gridClass = styles.duo;
             else if (count <= 4) gridClass = styles.quad;
-            
             containerRef.current.className = `${styles.groupCallGrid} ${gridClass}`;
         }
-    }, [allParticipants.length]);
-
+    }, [allParticipants]);
 
     return (
         <div ref={containerRef} className={styles.groupCallGrid}>
