@@ -1,4 +1,4 @@
-// --- DOSYA: src/context/CallContext.jsx (TAM VE EKSİKSİZ SON HALİ) ---
+// --- DOSYA: src/context/CallContext.jsx ---
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
@@ -23,7 +23,6 @@ export const CallProvider = ({ children }) => {
   const { showToast } = useToast();
   const loggedInUser = auth.currentUser;
   const tracksRef = useRef({ audio: null, video: null });
-  const [remoteAspectRatio, setRemoteAspectRatio] = useState(null);
 
   useEffect(() => {
     const agoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -55,11 +54,11 @@ export const CallProvider = ({ children }) => {
     setViewMode('closed');
     setIsMicMuted(false);
     setIsCameraOff(false);
-    setRemoteAspectRatio(null);
   }, [client, call]);
 
   useEffect(() => {
     if (!loggedInUser || !client) return;
+
     const incomingCallRef = ref(db, `calls/${loggedInUser.uid}`);
     const unsubscribe = onValue(incomingCallRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -85,24 +84,9 @@ export const CallProvider = ({ children }) => {
       await client.subscribe(user, mediaType);
       setRemoteUsers(prev => [...prev.filter(u => u.uid !== user.uid), user]);
       if (mediaType === 'audio') user.audioTrack.play();
-      
-      if (mediaType === 'video' && user.videoTrack) {
-        setTimeout(() => {
-          const track = user.videoTrack.getMediaStreamTrack();
-          if (track) {
-            const { width, height } = track.getSettings();
-            if (width && height) {
-              setRemoteAspectRatio(width / height);
-            }
-          }
-        }, 100);
-      }
     };
-    const handleUserUnpublished = (user, mediaType) => {
+    const handleUserUnpublished = (user) => {
       setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
-      if (mediaType === 'video') {
-        setRemoteAspectRatio(null);
-      }
     };
     const handleUserLeft = () => {
       showToast("Kullanıcı aramadan ayrıldı.", false);
@@ -206,8 +190,7 @@ export const CallProvider = ({ children }) => {
   const value = {
     call, viewMode, setViewMode, localTracks, remoteUsers,
     initiateCall, endCall, toggleMic, toggleCamera, flipCamera,
-    isMicMuted, isCameraOff,
-    remoteAspectRatio
+    isMicMuted, isCameraOff
   };
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
