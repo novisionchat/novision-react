@@ -4,7 +4,7 @@ import { auth } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import AuthPage from './components/AuthPage';
 import MainPage from './components/MainPage';
-import ToastContainer from './components/ToastContainer'; // YENİ: ToastContainer'ı import et
+import ToastContainer from './components/ToastContainer';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -26,6 +26,7 @@ function App() {
             alignItems: 'center',
             justifyContent: 'center',
             height: '100vh',
+            width: '100%', // <-- YENİ EKLENEN SATIR
             gap: '20px'
         }}>
             <img src="/assets/icon.png" alt="Loading" style={{width: '80px', height: '80px'}} />
@@ -37,7 +38,6 @@ function App() {
   return (
     <>
       {currentUser ? <MainPage /> : <AuthPage />}
-      {/* YENİ: ToastContainer tüm sayfanın üzerinde görünecek şekilde buraya eklendi */}
       <ToastContainer />
     </>
   );
