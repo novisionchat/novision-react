@@ -1,6 +1,7 @@
-// --- DOSYA: src/components/GroupCallView.jsx (TÜM SORUNLARI GİDEREN NİHAİ HALİ) ---
+// --- DOSYA: src/components/GroupCallView.jsx (SÜRÜKLEME VE STİL SORUNLARI ÇÖZÜLMÜŞ NİHAİ HAL) ---
 
-import React, { useRef } from 'react';
+import React, a
+from 'react';
 import AgoraUIKit from 'agora-react-uikit'; 
 import { useCall } from '../context/CallContext';
 import { useDraggable } from '../hooks/useDraggable';
@@ -19,7 +20,6 @@ const GroupCallView = () => {
     } = useCall();
     
     const pipRef = useRef(null);
-    // Sadece başlık çubuğundan sürükleneceği için useDraggable doğru çalışacak.
     const { style: draggableStyle } = useDraggable(pipRef);
 
     if (groupCallViewMode === 'closed' || !groupCall) {
@@ -32,83 +32,78 @@ const GroupCallView = () => {
         token: groupCall.token,
         uid: auth.currentUser.uid,
         enableScreensharing: true,
-        // Kendi küçük videomuzu DM'deki gibi sağ üste alalım.
-        layout: 1, // 0: Grid, 1: Pinned layout
+        // Kendi küçük videomuzu DM'deki gibi sağ üste alıyoruz
+        layout: 1, // 1 = Floating Layout
     };
 
     const callbacks = {
         EndCall: () => endGroupCall(),
     };
 
-    // SORUN 1 & 2 ÇÖZÜMÜ: Stilleri DM arayüzüyle tam uyumlu ve baskın hale getiriyoruz.
+    // DM arayüzüyle aynı stil özellikleri
     const styleProps = {
         UIKitContainer: {
-            width: '100%',
-            height: '100%',
-            borderRadius: groupCallViewMode === 'pip' ? '12px' : '0',
+            width: '100%', height: '100%',
+            borderRadius: 'inherit', // Ebeveyninden alsın
             backgroundColor: '#1a1a1a',
         },
-        // Kontrol çubuğunun pozisyonunu manuel olarak ayarlayarak kaybolmasını engelliyoruz.
+        // Ana video stilleri
+        gridVideoContainer: { borderRadius: '8px', border: 'none', gap: '15px' },
+        // Kendi küçük videomuzun stili
+        localVideoContainer: { 
+            bottom: 85, right: 20, 
+            width: 120, height: 180, 
+            borderRadius: 10,
+        },
+        username: {
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            padding: '4px 8px', borderRadius: '0 8px 0 8px',
+        },
         controlBar: {
-            position: 'absolute',
-            bottom: groupCallViewMode === 'pip' ? '10px' : '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            padding: groupCallViewMode === 'pip' ? '8px 15px' : '12px 25px',
-            borderRadius: '50px',
+            backgroundColor: 'rgba(0,0,0,0.6)', padding: '12px 25px',
+            borderRadius: '50px', bottom: '20px',
         },
-        // Her bir butonu ayrı ayrı DM arayüzüne benzetiyoruz.
         localBtnContainer: {
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '50%',
-            width: groupCallViewMode === 'pip' ? '40px' : '50px',
-            height: groupCallViewMode === 'pip' ? '40px' : '50px',
-            border: 'none',
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            width: '50px', height: '50px', borderRadius: '50%', border: 'none',
         },
-        localBtnContainer_muted: {
-            backgroundColor: '#ff4444',
-        },
-        // Kırmızı kapatma butonu
-        endCallButton: {
-            transform: 'rotate(135deg)',
-            backgroundColor: '#ff4444 !important', // Rengi her durumda eziyoruz
-        },
+        localBtnContainer_muted: { backgroundColor: '#ff4444' },
     };
+    
+    // PiP modu için daha kompakt tuşlar
+    if (groupCallViewMode === 'pip') {
+        styleProps.controlBar = {
+             backgroundColor: 'rgba(0,0,0,0.6)', padding: '8px 15px',
+             borderRadius: '50px', bottom: '10px'
+        };
+        styleProps.localBtnContainer = { width: 40, height: 40, borderRadius: '50%' };
+        styleProps.localVideoContainer = { display: 'none' }; // PiP modunda kendimizi tekrar göstermeye gerek yok
+    }
 
-    const containerClasses = `${styles.callContainer} ${groupCallViewMode === 'pip' ? styles.pipScreen : styles.fullScreen}`;
+    const containerClasses = `${styles.callContainer} ${groupCallViewMode === 'pip' ? styles.pipScreen : styles.maximizedView}`;
     const containerStyle = groupCallViewMode === 'pip' ? { ...draggableStyle } : {};
 
     return (
         <div ref={pipRef} className={containerClasses} style={containerStyle}>
             
-            {/* SORUN 3 ÇÖZÜMÜ: Sadece PiP modunda görünecek bir başlık çubuğu ekliyoruz. */}
-            {/* Bu başlık, sürükleme işlemini devralacak. */}
-            {groupCallViewMode === 'pip' && (
-                <div className={styles.pipHeader} data-drag-handle="true">
-                    <span>Grup Sohbeti</span>
-                </div>
-            )}
+            {/* SÜRÜKLEME ÇÖZÜMÜ: PiP modundayken görünen, şeffaf sürükleme alanı */}
+            {groupCallViewMode === 'pip' && <div className={styles.dragHandle}></div>}
 
-            <div className={styles.videoGridContainer}>
-                 <AgoraUIKit
-                    rtcProps={rtcProps}
-                    callbacks={callbacks}
-                    styleProps={styleProps}
-                />
-            </div>
+            <AgoraUIKit
+                rtcProps={rtcProps}
+                callbacks={callbacks}
+                styleProps={styleProps}
+            />
 
-            {/* Küçült/Büyüt butonlarımız hala en üstte ve bağımsız. */}
+            {/* Küçült/Büyüt butonları */}
             <div className={styles.customControls}>
-                {groupCallViewMode === 'full' ? (
-                    <button className={styles.controlBtn} onClick={() => setGroupCallViewMode('pip')} title="Küçült">
-                        <IoContract />
-                    </button>
-                ) : (
-                    <button className={styles.controlBtn} onClick={() => setGroupCallViewMode('full')} title="Genişlet">
-                        <IoExpand />
-                    </button>
-                )}
+                <button 
+                    className={styles.controlBtn} 
+                    onClick={() => setGroupCallViewMode(groupCallViewMode === 'full' ? 'pip' : 'full')}
+                    title={groupCallViewMode === 'full' ? "Küçült" : "Genişlet"}
+                >
+                    {groupCallViewMode === 'full' ? <IoContract /> : <IoExpand />}
+                </button>
             </div>
         </div>
     );
