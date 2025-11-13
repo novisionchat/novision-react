@@ -59,10 +59,13 @@
     transform: translateX(-50%);
     z-index: 10;
     width: auto;
-    /* DM stiliyle uyumlu arka plan */
     background-color: rgba(0,0,0,0.6);
     padding: 12px 25px;
     border-radius: 50px;
+    display: flex;       
+    align-items: center; 
+    gap: 15px;           
+
 }
 .pipScreen .controlsWrapper {
     bottom: 8px;
