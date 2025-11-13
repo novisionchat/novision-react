@@ -9,7 +9,13 @@
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease-in-out;
     overflow: hidden;
+    /* useDraggable'ın cursor stilini etkinleştirmek için */
+    cursor: move; 
 }
+.callContainer button {
+    cursor: pointer; /* Butonların üzerine gelince normal imleç olsun */
+}
+
 
 .fullScreen {
     position: fixed;
@@ -23,10 +29,11 @@
 
 .pipScreen {
     position: fixed;
+    /* useDraggable artık pozisyonu yönetecek. Başlangıç için bottom/right kalabilir. */
     bottom: 20px;
     right: 20px;
-    width: 320px;
-    height: 240px;
+    width: 360px; /* Biraz daha geniş */
+    height: 270px; /* 4:3 oran */
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     z-index: 2501;
@@ -52,13 +59,19 @@
     transform: translateX(-50%);
     z-index: 10;
     width: auto;
+    /* DM stiliyle uyumlu arka plan */
+    background-color: rgba(0,0,0,0.6);
+    padding: 12px 25px;
+    border-radius: 50px;
 }
 .pipScreen .controlsWrapper {
     bottom: 8px;
+    padding: 8px 15px;
 }
 
 
 /* --- YENİ EKLENEN STİLLER: Akıllı Yerleşim İçin --- */
+/* DM'deki localVideoContainer ile neredeyse aynı */
 .floatingLocalUser {
     position: absolute;
     bottom: 100px; /* Kontrollerin üstünde */
@@ -74,12 +87,16 @@
 }
 
 .pipScreen .floatingLocalUser {
-    display: none; /* PIP modundayken kendimizi ayrıca göstermeye gerek yok */
+    width: 80px;
+    height: 120px;
+    bottom: 70px; /* PiP modunda kontroller daha küçük */
+    right: 15px;
 }
 
 .localVideo {
     width: 100%;
     height: 100%;
+    object-fit: cover;
 }
 /* Kendi görüntümüzü aynalanmış göster */
 .localVideo > div {
@@ -112,7 +129,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
     transition: background-color 0.2s;
 }
 
@@ -122,8 +138,8 @@
 
 @media (max-width: 768px) {
     .pipScreen {
-        width: 150px;
-        height: 200px;
+        width: 180px; /* Mobil için daha uygun boyut */
+        height: 240px;
     }
     .floatingLocalUser {
         width: 80px;

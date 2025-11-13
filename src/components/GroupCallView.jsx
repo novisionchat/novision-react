@@ -70,8 +70,9 @@ const GroupCallView = () => {
     let gridUsers = allUsers;
     let showFloatingLocalUser = false;
 
-    if (allUsers.length <= 3) {
-        // 3 veya daha az kişi varsa, ana grid'de sadece diğerlerini göster
+    // Eğer biz dahil 3 veya daha az kişi varsa, kendimizi grid'den çıkarıp yüzen pencereye alıyoruz.
+    if (allUsers.length > 1 && allUsers.length <= 3) {
+        // Ana grid'de sadece diğerlerini göster
         gridUsers = allUsers.filter(user => user.uid !== auth.currentUser.uid);
         // Kendimizi sağ alttaki küçük pencerede göster
         showFloatingLocalUser = true;
@@ -97,20 +98,20 @@ const GroupCallView = () => {
         gridVideoContainer: {
             borderRadius: '8px',
             border: 'none',
-            gap: '8px'
+            gap: '15px' // Izgara arası boşluk
         },
         gridUserContainer: {
              // İsim etiketlerinin stili
             username: {
                 backgroundColor: 'rgba(0,0,0,0.5)',
                 padding: '4px 8px',
-                borderRadius: '0 8px 0 0',
+                borderRadius: '0 8px 0 8px',
             }
         },
         // Kontrol butonlarının olduğu bar
         controlBar: {
             backgroundColor: 'transparent',
-            padding: '15px 25px',
+            padding: '0', // Wrapper'dan alacak
         },
         // Butonların kendisi
         localBtnContainer: {
@@ -131,11 +132,12 @@ const GroupCallView = () => {
 
     return (
         <div ref={pipRef} className={containerClasses} style={containerStyle}>
-            <div className={styles.videoGridContainer}>
+            <div className={styles.videoGridContainer} data-drag-handle="true">
                 {/* Agora Grid'i sadece katılımcıları göstermek için kullanıyoruz */}
                 <Grid users={gridUsers} styleProps={styleProps} />
-                {/* 3 kişiden azsa, kendi görüntümüzü ayrı gösteriyoruz */}
-                {showFloatingLocalUser && <LocalUserView localVideoTrack={localTracks.video} />}
+                
+                {/* Akıllı yerleşim: Kendimizi ayrı gösteriyoruz */}
+                {showFloatingLocalUser && localTracks.video && <LocalUserView localVideoTrack={localTracks.video} />}
             </div>
             
             {/* Agora Butonlarını kontroller için kullanıyoruz */}
