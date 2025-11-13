@@ -70,9 +70,8 @@ const GroupCallView = () => {
     let gridUsers = allUsers;
     let showFloatingLocalUser = false;
 
-    // Eğer katılımcı sayısı 3 veya daha az ise, kendimizi grid dışında tutuyoruz.
     if (allUsers.length <= 3) {
-        // Ana grid'de sadece diğerlerini göster
+        // 3 veya daha az kişi varsa, ana grid'de sadece diğerlerini göster
         gridUsers = allUsers.filter(user => user.uid !== auth.currentUser.uid);
         // Kendimizi sağ alttaki küçük pencerede göster
         showFloatingLocalUser = true;

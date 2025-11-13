@@ -20,6 +20,17 @@ export const useDraggable = (elRef, initialPosition = { x: 0, y: 0 }) => {
       return;
     }
 
+    // Sürüklenebilir olarak işaretlenmiş bir "handle" varsa ve tıklanan yer
+    // bu handle'ın içinde değilse sürüklemeyi başlatma.
+    const handle = elRef.current?.querySelector('[data-drag-handle="true"]');
+    if (handle && !handle.contains(e.target)) {
+        // Eğer bir handle tanımlıysa ve tıklanan yer o değilse,
+        // ve tıklanan yer ana elementin kendisi de değilse (boşluksa) sürükle.
+        // Bu mantık biraz karmaşıklaşabilir, en basiti handle varsa sadece handle'dan sürüklemek.
+        // Bizim senaryomuzda "her yerden" sürüklemek istediğimiz için bu kontrolü şimdilik basitleştirelim.
+    }
+
+
     const coords = getEventCoords(e);
     isDraggingRef.current = true;
     
@@ -29,7 +40,7 @@ export const useDraggable = (elRef, initialPosition = { x: 0, y: 0 }) => {
       x: coords.clientX - position.x,
       y: coords.clientY - position.y,
     };
-  }, [position]);
+  }, [position, elRef]);
 
   const handleDragMove = useCallback((e) => {
     if (isDraggingRef.current) {
