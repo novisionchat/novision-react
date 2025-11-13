@@ -125,9 +125,8 @@ const CallView = () => {
             className={containerClass}
             style={containerStyle}
             onClick={showControls}
-            onMouseMove={showControls}
+            // --- GÜNCELLENDİ ---: onMouseMove buradan kaldırıldı çünkü sürükleme ile çakışıyordu.
         >
-            {/* --- DEĞİŞİKLİK BURADA --- */}
             <div className={`${styles.pipHeader} ${!controlsVisible ? styles.controlsHidden : ''}`} data-drag-handle="true">
                 <span>{otherUserName} ile görüşme</span>
                 <div className={styles.pipControls}>
@@ -139,7 +138,8 @@ const CallView = () => {
                     <button onClick={(e) => { e.stopPropagation(); endCall(); }} title="Kapat"><IoClose /></button>
                 </div>
             </div>
-            <div className={styles.pipContent}>
+            {/* --- GÜNCELLENDİ ---: onMouseMove olayı iç panele taşındı. */}
+            <div className={styles.pipContent} onMouseMove={showControls}>
                 {isVideoCall ? (
                     <>
                         <div className={styles.remoteVideoContainer}>
