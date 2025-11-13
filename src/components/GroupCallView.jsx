@@ -1,36 +1,16 @@
-// --- DOSYA: src/components/GroupCallView.jsx (NİHAİ VE AKILLI ARAYÜZ) ---
+// --- DOSYA: src/components/GroupCallView.jsx (HATALARI GİDERİLMİŞ VE DOĞRU KULLANIM) ---
 
-import React, { useRef, useMemo } from 'react';
-import { Grid, AgoraButtons } from 'agora-react-uikit';
+import React, { useRef } from 'react';
+// DEĞİŞİKLİK 1: Hatalı import'u düzeltiyoruz. Artık tek bir ana bileşen var.
+import AgoraUIKit from 'agora-react-uikit'; 
 import { useCall } from '../context/CallContext';
 import { useDraggable } from '../hooks/useDraggable';
-import styles from './GroupCallView.module.css'; // Yeni stillerimizi import ediyoruz
+import styles from './GroupCallView.module.css';
 import { auth } from '../lib/firebase';
 import { IoContract, IoExpand } from "react-icons/io5";
 
 // Agora App ID'sini burada tanımlıyoruz.
 const AGORA_APP_ID = "c1a39c1b29b24faba92cc2a0c187294d";
-
-// Kendi videomuzu göstermek için küçük bir bileşen
-const LocalUserView = ({ localVideoTrack }) => {
-    const videoRef = useRef(null);
-
-    React.useEffect(() => {
-        if (videoRef.current && localVideoTrack) {
-            localVideoTrack.play(videoRef.current);
-        }
-        return () => {
-            localVideoTrack?.stop();
-        };
-    }, [localVideoTrack]);
-
-    return (
-        <div className={styles.floatingLocalUser}>
-            <div ref={videoRef} className={styles.localVideo}></div>
-        </div>
-    );
-};
-
 
 const GroupCallView = () => {
     const { 
@@ -38,82 +18,53 @@ const GroupCallView = () => {
         groupCallViewMode, 
         setGroupCallViewMode, 
         endGroupCall,
-        remoteUsers,      // Artık remoteUsers'ı da alıyoruz
-        localTracks       // Kendi video track'imizi almak için
     } = useCall();
     
     const pipRef = useRef(null);
-    const { style: draggableStyle } = useDraggable(pipRef); // 1. Sürüklenebilir PiP çözüldü.
-
-    // Memoize ederek gereksiz render'ları önle
-    const allUsers = useMemo(() => {
-        const currentUser = auth.currentUser;
-        if (!currentUser) return [];
-        
-        const localUser = {
-            uid: currentUser.uid,
-            hasAudio: localTracks.audio ? true : false,
-            hasVideo: localTracks.video ? true : false,
-            videoTrack: localTracks.video,
-            audioTrack: localTracks.audio,
-            displayName: currentUser.displayName // Görüntülemek için
-        };
-        return [localUser, ...remoteUsers];
-    }, [remoteUsers, localTracks]);
-
+    const { style: draggableStyle } = useDraggable(pipRef);
 
     if (groupCallViewMode === 'closed' || !groupCall) {
         return null;
     }
 
-    // 3. Akıllı Görüntü Yerleşimi Mantığı
-    let gridUsers = allUsers;
-    let showFloatingLocalUser = false;
-
-    // Eğer biz dahil 3 veya daha az kişi varsa, kendimizi grid'den çıkarıp yüzen pencereye alıyoruz.
-    if (allUsers.length > 1 && allUsers.length <= 3) {
-        // Ana grid'de sadece diğerlerini göster
-        gridUsers = allUsers.filter(user => user.uid !== auth.currentUser.uid);
-        // Kendimizi sağ alttaki küçük pencerede göster
-        showFloatingLocalUser = true;
-    }
-
+    // AgoraUIKit'in ihtiyaç duyduğu tüm konfigürasyonlar
     const rtcProps = {
         appId: AGORA_APP_ID,
         channel: groupCall.channelName,
         token: groupCall.token,
-        uid: auth.currentUser.uid, // UID'mizi belirtmek önemli
+        uid: auth.currentUser.uid,
         enableScreensharing: true,
     };
 
+    // Aramayı bitirme gibi eylemler için callback'ler
     const callbacks = {
         EndCall: () => endGroupCall(),
     };
 
-    // 2. Tam Tema Entegrasyonu: DM arayüzüyle aynı stil
+    // DM arayüzüyle aynı stil özelliklerini buraya taşıyoruz
     const styleProps = {
         UIKitContainer: {
+            width: '100%',
+            height: '100%',
             borderRadius: groupCallViewMode === 'pip' ? '12px' : '0',
+            backgroundColor: '#1a1a1a',
         },
         gridVideoContainer: {
             borderRadius: '8px',
             border: 'none',
-            gap: '15px' // Izgara arası boşluk
+            gap: '15px'
         },
-        gridUserContainer: {
-             // İsim etiketlerinin stili
-            username: {
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                padding: '4px 8px',
-                borderRadius: '0 8px 0 8px',
-            }
+        username: {
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            padding: '4px 8px',
+            borderRadius: '0 8px 0 8px',
         },
-        // Kontrol butonlarının olduğu bar
         controlBar: {
-            backgroundColor: 'transparent',
-            padding: '0', // Wrapper'dan alacak
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: '12px 25px',
+            borderRadius: '50px',
+            bottom: '20px',
         },
-        // Butonların kendisi
         localBtnContainer: {
             backgroundColor: 'rgba(255,255,255,0.2)',
             width: '50px',
@@ -121,7 +72,6 @@ const GroupCallView = () => {
             borderRadius: '50%',
             border: 'none',
         },
-        // Buton aktif değilken (örneğin kamera kapalıyken)
         localBtnContainer_muted: {
             backgroundColor: '#ff4444',
         },
@@ -132,24 +82,18 @@ const GroupCallView = () => {
 
     return (
         <div ref={pipRef} className={containerClasses} style={containerStyle}>
-            <div className={styles.videoGridContainer} data-drag-handle="true">
-                {/* Agora Grid'i sadece katılımcıları göstermek için kullanıyoruz */}
-                <Grid users={gridUsers} styleProps={styleProps} />
-                
-                {/* Akıllı yerleşim: Kendimizi ayrı gösteriyoruz */}
-                {showFloatingLocalUser && localTracks.video && <LocalUserView localVideoTrack={localTracks.video} />}
-            </div>
             
-            {/* Agora Butonlarını kontroller için kullanıyoruz */}
-            <div className={styles.controlsWrapper}>
-                <AgoraButtons
+            {/* DEĞİŞİKLİK 2: Ayrı Grid ve Buttonlar yerine tek bir AgoraUIKit bileşeni kullanıyoruz */}
+            {/* Bu bileşen, video ızgarasını ve kontrol tuşlarını kendisi yönetir. */}
+            <div className={styles.videoGridContainer} data-drag-handle="true">
+                 <AgoraUIKit
                     rtcProps={rtcProps}
                     callbacks={callbacks}
                     styleProps={styleProps}
                 />
             </div>
 
-            {/* Kendi özel Küçült/Büyüt butonlarımız */}
+            {/* Kendi özel Küçült/Büyüt butonlarımız hala dışarıda ve çalışır durumda */}
             <div className={styles.customControls}>
                 {groupCallViewMode === 'full' ? (
                     <button className={styles.controlBtn} onClick={() => setGroupCallViewMode('pip')} title="Küçült">
