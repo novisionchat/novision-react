@@ -1,67 +1,119 @@
-/* --- DOSYA: src/components/GroupCallView.module.css (NİHAİ VE TAM ÇALIŞAN HAL) --- */
+/* --- DOSYA: src/components/GroupCallView.module.css (NİHAİ HALİ) --- */
 
 .callContainer {
     display: flex;
     flex-direction: column;
+    justify-content: space-between; /* Grid ve kontrolleri ayırır */
     background-color: #1a1a1a;
     color: white;
-    transition: width 0.3s ease, height 0.3s ease, transform 0s; /* Transform anlık olmalı */
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease-in-out;
     overflow: hidden;
-    position: relative;
+    /* useDraggable'ın cursor stilini etkinleştirmek için */
+    cursor: move; 
+}
+.callContainer button {
+    cursor: pointer; /* Butonların üzerine gelince normal imleç olsun */
 }
 
-/* Tam ekran modu, artık viewport'u değil, kendi kapsayıcısını doldurur */
-.maximizedView {
-    width: 100%;
-    height: 100%;
+
+.fullScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2500;
+    border-radius: 0;
 }
 
 .pipScreen {
-    position: fixed; /* Sadece PiP modundayken fixed olacak */
+    position: fixed;
+    /* useDraggable artık pozisyonu yönetecek. Başlangıç için bottom/right kalabilir. */
     bottom: 20px;
     right: 20px;
-    width: 360px;
-    height: 270px;
+    width: 360px; /* Biraz daha geniş */
+    height: 270px; /* 4:3 oran */
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     z-index: 2501;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-    /* useDraggable hook'u imleci yönetecek */
-    cursor: move;
 }
 
-/* --- SÜRÜKLEME ÇÖZÜMÜ --- */
-.dragHandle {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    /* Butonlar hariç üst kısmı kaplar, böylece butonlara tıklanabilir */
-    height: calc(100% - 80px); 
-    z-index: 1; /* Agora arayüzünün üzerinde ama customControls'un altında */
-    /* Görünmez ama fare olaylarını yakalar */
-    background-color: transparent;
-}
-
-
-/* Agora bileşenini saran ve borderRadius'ı devralmasını sağlayan wrapper */
-.agoraWrapper {
+/* Ana video alanını kapsar */
+.videoGridContainer {
+    position: relative;
     width: 100%;
     height: 100%;
-    position: relative;
-    border-radius: inherit; /* Ana kapsayıcının border-radius'unu alır */
-    overflow: hidden; /* İçeriğin taşmasını engeller */
+    padding: 15px;
+    box-sizing: border-box;
+}
+.pipScreen .videoGridContainer {
+    padding: 8px;
 }
 
-/* Küçült/Büyüt butonları */
+/* Kontrolleri ekranın altında ortalar */
+.controlsWrapper {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: auto;
+    /* DM stiliyle uyumlu arka plan */
+    background-color: rgba(0,0,0,0.6);
+    padding: 12px 25px;
+    border-radius: 50px;
+}
+.pipScreen .controlsWrapper {
+    bottom: 8px;
+    padding: 8px 15px;
+}
+
+
+/* --- YENİ EKLENEN STİLLER: Akıllı Yerleşim İçin --- */
+/* DM'deki localVideoContainer ile neredeyse aynı */
+.floatingLocalUser {
+    position: absolute;
+    bottom: 100px; /* Kontrollerin üstünde */
+    right: 30px;
+    width: 120px;
+    height: 180px;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 5;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.2);
+    background: #000;
+}
+
+.pipScreen .floatingLocalUser {
+    width: 80px;
+    height: 120px;
+    bottom: 70px; /* PiP modunda kontroller daha küçük */
+    right: 15px;
+}
+
+.localVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+/* Kendi görüntümüzü aynalanmış göster */
+.localVideo > div {
+    transform: scaleX(-1);
+}
+/* --- BİTİŞ: Akıllı Yerleşim Stilleri --- */
+
+
 .customControls {
     position: absolute;
     top: 15px;
     right: 15px;
-    z-index: 2; /* Sürükleme alanının üzerinde olmalı */
+    z-index: 9999;
     display: flex;
     gap: 8px;
 }
+
 .pipScreen .customControls {
     top: 8px;
     right: 8px;
@@ -78,8 +130,21 @@
     align-items: center;
     justify-content: center;
     transition: background-color 0.2s;
-    cursor: pointer;
 }
+
 .controlBtn:hover {
     background-color: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 768px) {
+    .pipScreen {
+        width: 180px; /* Mobil için daha uygun boyut */
+        height: 240px;
+    }
+    .floatingLocalUser {
+        width: 80px;
+        height: 120px;
+        bottom: 85px;
+        right: 15px;
+    }
 }
