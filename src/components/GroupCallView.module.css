@@ -1,14 +1,14 @@
-/* --- DOSYA: src/components/GroupCallView.module.css (GÜNCELLENMİŞ HALİ) --- */
+/* --- DOSYA: src/components/GroupCallView.module.css (NİHAİ HALİ) --- */
 
 .callContainer {
     display: flex;
     flex-direction: column;
-    background-color: #111; /* DM arayüzü ile aynı arkaplan */
+    justify-content: space-between; /* Grid ve kontrolleri ayırır */
+    background-color: #1a1a1a;
     color: white;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
     transition: all 0.3s ease-in-out;
-    overflow: hidden !important;
-    position: relative; /* Butonları doğru konumlandırmak için */
+    overflow: hidden;
 }
 
 .fullScreen {
@@ -30,46 +30,105 @@
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     z-index: 2501;
-    cursor: move; /* Sürüklenebilir olduğunu belirtir */
 }
 
-/* Küçült/Büyüt butonları için özel alan */
+/* Ana video alanını kapsar */
+.videoGridContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 15px;
+    box-sizing: border-box;
+}
+.pipScreen .videoGridContainer {
+    padding: 8px;
+}
+
+/* Kontrolleri ekranın altında ortalar */
+.controlsWrapper {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: auto;
+}
+.pipScreen .controlsWrapper {
+    bottom: 8px;
+}
+
+
+/* --- YENİ EKLENEN STİLLER: Akıllı Yerleşim İçin --- */
+.floatingLocalUser {
+    position: absolute;
+    bottom: 100px; /* Kontrollerin üstünde */
+    right: 30px;
+    width: 120px;
+    height: 180px;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 5;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.2);
+    background: #000;
+}
+
+.pipScreen .floatingLocalUser {
+    display: none; /* PIP modundayken kendimizi ayrıca göstermeye gerek yok */
+}
+
+.localVideo {
+    width: 100%;
+    height: 100%;
+}
+/* Kendi görüntümüzü aynalanmış göster */
+.localVideo > div {
+    transform: scaleX(-1);
+}
+/* --- BİTİŞ: Akıllı Yerleşim Stilleri --- */
+
+
 .customControls {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 9999; /* Agora kitinin kontrollerinin üstünde olsun */
+    top: 15px;
+    right: 15px;
+    z-index: 9999;
     display: flex;
     gap: 8px;
 }
 
 .pipScreen .customControls {
-    top: 5px;
-    right: 5px;
+    top: 8px;
+    right: 8px;
 }
 
 .controlBtn {
-    /* DM arayüzündeki header butonları gibi yapalım */
-    background: none;
+    background-color: rgba(255, 255, 255, 0.2);
     border: none;
-    color: #fff;
-    cursor: pointer;
-    padding: 5px;
+    color: white;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .controlBtn:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.4);
 }
 
-/* Mobil Cihazlar İçin */
 @media (max-width: 768px) {
     .pipScreen {
         width: 150px;
         height: 200px;
+    }
+    .floatingLocalUser {
+        width: 80px;
+        height: 120px;
+        bottom: 85px;
+        right: 15px;
     }
 }

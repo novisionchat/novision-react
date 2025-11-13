@@ -1,11 +1,36 @@
-// --- DOSYA: src/components/GroupCallView.jsx (NİHAİ VE AKILLI VERSİYON) ---
+// --- DOSYA: src/components/GroupCallView.jsx (NİHAİ VE AKILLI ARAYÜZ) ---
 
 import React, { useRef, useMemo } from 'react';
-import AgoraUIKit from 'agora-react-uikit';
+import { Grid, AgoraButtons } from 'agora-react-uikit';
 import { useCall } from '../context/CallContext';
 import { useDraggable } from '../hooks/useDraggable';
-import styles from './GroupCallView.module.css';
+import styles from './GroupCallView.module.css'; // Yeni stillerimizi import ediyoruz
+import { auth } from '../lib/firebase';
 import { IoContract, IoExpand } from "react-icons/io5";
+
+// Agora App ID'sini burada tanımlıyoruz.
+const AGORA_APP_ID = "c1a39c1b29b24faba92cc2a0c187294d";
+
+// Kendi videomuzu göstermek için küçük bir bileşen
+const LocalUserView = ({ localVideoTrack }) => {
+    const videoRef = useRef(null);
+
+    React.useEffect(() => {
+        if (videoRef.current && localVideoTrack) {
+            localVideoTrack.play(videoRef.current);
+        }
+        return () => {
+            localVideoTrack?.stop();
+        };
+    }, [localVideoTrack]);
+
+    return (
+        <div className={styles.floatingLocalUser}>
+            <div ref={videoRef} className={styles.localVideo}></div>
+        </div>
+    );
+};
+
 
 const GroupCallView = () => {
     const { 
@@ -13,100 +38,130 @@ const GroupCallView = () => {
         groupCallViewMode, 
         setGroupCallViewMode, 
         endGroupCall,
-        remoteUsers // Akıllı düzen için remoteUsers'ı alıyoruz
+        remoteUsers,      // Artık remoteUsers'ı da alıyoruz
+        localTracks       // Kendi video track'imizi almak için
     } = useCall();
-
+    
     const pipRef = useRef(null);
-    const { style: draggableStyle } = useDraggable(pipRef); // SÜRÜKLENEBİLİRLİK EKLENDİ
+    const { style: draggableStyle } = useDraggable(pipRef); // 1. Sürüklenebilir PiP çözüldü.
 
-    // Akıllı düzen mantığı
-    const totalUsers = useMemo(() => 1 + remoteUsers.length, [remoteUsers]);
-    const layout = totalUsers >= 4 ? 1 : 2; // 4+ kişi ise Grid (1), 3 veya daha az ise Pinned (2)
+    // Memoize ederek gereksiz render'ları önle
+    const allUsers = useMemo(() => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return [];
+        
+        const localUser = {
+            uid: currentUser.uid,
+            hasAudio: localTracks.audio ? true : false,
+            hasVideo: localTracks.video ? true : false,
+            videoTrack: localTracks.video,
+            audioTrack: localTracks.audio,
+            displayName: currentUser.displayName // Görüntülemek için
+        };
+        return [localUser, ...remoteUsers];
+    }, [remoteUsers, localTracks]);
+
 
     if (groupCallViewMode === 'closed' || !groupCall) {
         return null;
+    }
+
+    // 3. Akıllı Görüntü Yerleşimi Mantığı
+    let gridUsers = allUsers;
+    let showFloatingLocalUser = false;
+
+    // Eğer katılımcı sayısı 3 veya daha az ise, kendimizi grid dışında tutuyoruz.
+    if (allUsers.length <= 3) {
+        // Ana grid'de sadece diğerlerini göster
+        gridUsers = allUsers.filter(user => user.uid !== auth.currentUser.uid);
+        // Kendimizi sağ alttaki küçük pencerede göster
+        showFloatingLocalUser = true;
     }
 
     const rtcProps = {
         appId: AGORA_APP_ID,
         channel: groupCall.channelName,
         token: groupCall.token,
+        uid: auth.currentUser.uid, // UID'mizi belirtmek önemli
         enableScreensharing: true,
-        layout: layout, // AKILLI DÜZEN BURADA UYGULANIYOR
-        uid: auth.currentUser?.uid, // Kendi UID'mizi verelim ki kit bizi tanısın
     };
 
     const callbacks = {
-        EndCall: () => {
-            endGroupCall();
-        },
+        EndCall: () => endGroupCall(),
     };
 
-    // STİL TUTARLILIĞI: DM arayüzüyle aynı renkleri ve stilleri tanımlıyoruz
+    // 2. Tam Tema Entegrasyonu: DM arayüzüyle aynı stil
     const styleProps = {
-        gridContainer: {
-            backgroundColor: '#111',
+        UIKitContainer: {
             borderRadius: groupCallViewMode === 'pip' ? '12px' : '0',
         },
-        controlBar: {
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            borderRadius: '50px',
+        gridVideoContainer: {
+            borderRadius: '8px',
+            border: 'none',
+            gap: '8px'
         },
+        gridUserContainer: {
+             // İsim etiketlerinin stili
+            username: {
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                padding: '4px 8px',
+                borderRadius: '0 8px 0 0',
+            }
+        },
+        // Kontrol butonlarının olduğu bar
+        controlBar: {
+            backgroundColor: 'transparent',
+            padding: '15px 25px',
+        },
+        // Butonların kendisi
         localBtnContainer: {
             backgroundColor: 'rgba(255,255,255,0.2)',
-            borderColor: 'transparent',
             width: '50px',
             height: '50px',
+            borderRadius: '50%',
+            border: 'none',
         },
-        endCallContainer: {
-            backgroundColor: '#ff4444', // DM'deki kırmızı
-            borderColor: '#ff4444',
-            width: '50px',
-            height: '50px',
-        },
-        // Pip modunda butonları küçültelim
-        pipLocalBtnContainer: {
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            width: '40px',
-            height: '40px'
-        },
-        pipEndCallContainer: {
+        // Buton aktif değilken (örneğin kamera kapalıyken)
+        localBtnContainer_muted: {
             backgroundColor: '#ff4444',
-            width: '40px',
-            height: '40px'
-        }
+        },
     };
 
     const containerClasses = `${styles.callContainer} ${groupCallViewMode === 'pip' ? styles.pipScreen : styles.fullScreen}`;
-    // Sürüklenebilir stili sadece PiP modunda uygula
     const containerStyle = groupCallViewMode === 'pip' ? { ...draggableStyle } : {};
 
     return (
-        // Sürüklenebilirlik için ref'i ekliyoruz
         <div ref={pipRef} className={containerClasses} style={containerStyle}>
-            <AgoraUIKit
-                rtcProps={rtcProps}
-                callbacks={callbacks}
-                styleProps={styleProps}
-            />
-            {/* Özel Küçült/Büyüt butonlarımız */}
+            <div className={styles.videoGridContainer}>
+                {/* Agora Grid'i sadece katılımcıları göstermek için kullanıyoruz */}
+                <Grid users={gridUsers} styleProps={styleProps} />
+                {/* 3 kişiden azsa, kendi görüntümüzü ayrı gösteriyoruz */}
+                {showFloatingLocalUser && <LocalUserView localVideoTrack={localTracks.video} />}
+            </div>
+            
+            {/* Agora Butonlarını kontroller için kullanıyoruz */}
+            <div className={styles.controlsWrapper}>
+                <AgoraButtons
+                    rtcProps={rtcProps}
+                    callbacks={callbacks}
+                    styleProps={styleProps}
+                />
+            </div>
+
+            {/* Kendi özel Küçült/Büyüt butonlarımız */}
             <div className={styles.customControls}>
                 {groupCallViewMode === 'full' ? (
                     <button className={styles.controlBtn} onClick={() => setGroupCallViewMode('pip')} title="Küçült">
-                        <IoContract size={18} />
+                        <IoContract />
                     </button>
                 ) : (
                     <button className={styles.controlBtn} onClick={() => setGroupCallViewMode('full')} title="Genişlet">
-                        <IoExpand size={18} />
+                        <IoExpand />
                     </button>
                 )}
             </div>
         </div>
     );
 };
-
-const AGORA_APP_ID = "c1a39c1b29b24faba92cc2a0c187294d";
-// auth'ı burada da import etmemiz gerekiyor
-import { auth } from '../lib/firebase.js';
 
 export default GroupCallView;
