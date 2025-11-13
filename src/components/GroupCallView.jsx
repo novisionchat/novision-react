@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/GroupCallView.jsx (NİHAİ VE ÇALIŞIR SÜRÜM) ---
+// --- DOSYA: src/components/GroupCallView.jsx (AKILLI GRİD VE SİYAH EKRAN SORUNU GİDERİLDİ) ---
 
 import React, { useRef, useState, useEffect } from 'react';
 import {
@@ -14,14 +14,15 @@ import AgoraRTC from "agora-rtc-sdk-ng";
 
 import { useCall } from '../context/CallContext';
 import { useDraggable } from '../hooks/useDraggable';
-import styles from './GroupCallView.module.css';
+import styles from './GroupCallView.module.css'; // Bu CSS dosyası kullanılmaya devam edecek
 import { auth } from '../lib/firebase';
 import { IoContract, IoExpand, IoVideocam, IoVideocamOff, IoMic, IoMicOff, IoCall } from "react-icons/io5";
 
 const AGORA_APP_ID = "c1a39c1b29b24faba92cc2a0c187294d";
 const client = AgoraRTC.createClient({ codec: "vp8", mode: "rtc" });
 
-const VideoCallUI = ({ endGroupCall, groupCallViewMode }) => {
+// Arayüzü içeren bileşen
+const VideoCallUI = ({ endGroupCall }) => {
     const [micOn, setMicOn] = useState(true);
     const [cameraOn, setCameraOn] = useState(true);
 
@@ -31,53 +32,66 @@ const VideoCallUI = ({ endGroupCall, groupCallViewMode }) => {
     const rtcClient = useRTCClient();
 
     useEffect(() => {
-        const publishTracks = async () => {
-            if (localMicrophoneTrack && localCameraTrack) {
-                await rtcClient.publish([localMicrophoneTrack, localCameraTrack]);
-            }
-        };
-        publishTracks();
+        // Cihazlar hazır olduğunda kanalda yayınla
+        if (localMicrophoneTrack && localCameraTrack) {
+            rtcClient.publish([localMicrophoneTrack, localCameraTrack]);
+        }
         return () => {
-             if (localMicrophoneTrack && localCameraTrack) {
+            // Bileşen ayrıldığında yayını durdur
+            if (localMicrophoneTrack && localCameraTrack) {
                 rtcClient.unpublish([localMicrophoneTrack, localCameraTrack]);
-             }
+            }
         };
     }, [localCameraTrack, localMicrophoneTrack, rtcClient]);
 
-    // Katılımcı sayısına göre dinamik grid stili oluştur
+    // --- 1. ADIM: AKILLI GRİD MANTIĞI ---
+    // Toplam katılımcı sayısı (kendimiz + diğerleri)
+    const participantCount = remoteUsers.length + 1;
+    // Grid'in kolon sayısını hesapla (2 katılımcı -> 2, 4 katılımcı -> 2, 9 katılımcı -> 3)
+    const gridCols = Math.ceil(Math.sqrt(participantCount));
+    
+    // Dinamik grid stilini oluştur
     const gridStyle = {
         display: 'grid',
         width: '100%',
         height: '100%',
-        gap: groupCallViewMode === 'pip' ? '8px' : '15px',
-        // Katılımcı sayısına göre kolon sayısını ayarla
-        gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(remoteUsers.length + 1))}, 1fr)`,
+        gap: '15px',
+        gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+        gridTemplateRows: `repeat(${Math.ceil(participantCount / gridCols)}, 1fr)`
     };
-    
+
     return (
         <>
-            <div className={styles.videoGridContainer} data-drag-handle="true" style={gridStyle}>
-                {/* DİĞER KULLANICILARIN VİDEOSU */}
+            {/* --- 2. ADIM: GRİD'İ UYGULA --- */}
+            <div className={styles.videoGridContainer} style={gridStyle} data-drag-handle="true">
+                
+                {/* KENDİ VİDEOMUZU GRİD'İN BİR PARÇASI YAPIYORUZ */}
+                {cameraOn && (
+                    <div className="grid-item" style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '12px' }}>
+                        <LocalVideoTrack
+                            track={localCameraTrack}
+                            play={true}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                        />
+                    </div>
+                )}
+                
+                {/* DİĞER KULLANICILARIN VİDEOLARI */}
                 {remoteUsers.map(user => (
-                    // DÜZELTME 1: Siyah ekran sorunu için style eklendi
-                    <div key={user.uid} className="remote-user-container" style={{ width: '100%', height: '100%', borderRadius: '8px', overflow: 'hidden' }}>
-                        <RemoteUser user={user} playVideo={true} playAudio={true} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div key={user.uid} className="grid-item" style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '12px', background: '#2c2c2c' }}>
+                        {/* --- 3. ADIM: SİYAH EKRAN ÇÖZÜMÜ --- */}
+                        {/* RemoteUser bileşenine doğrudan stil vererek kaplama yapmasını sağlıyoruz */}
+                        <RemoteUser
+                            user={user}
+                            playVideo={true}
+                            playAudio={true}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
                     </div>
                 ))}
-
-                 {/* KENDİ GÖRÜNTÜMÜZÜN YÜZEN PENCERESİ */}
-                 {/* Eğer 1'den fazla kişi varsa kendi görüntümüzü küçük göster, teksek tam ekran */}
-                 {cameraOn && remoteUsers.length > 0 ? (
-                    <div className={styles.floatingLocalUser}>
-                        <LocalVideoTrack track={localCameraTrack} play={true} className={styles.localVideo} />
-                    </div>
-                 ) : cameraOn && (
-                    <div className="local-user-container" style={{ width: '100%', height: '100%', borderRadius: '8px', overflow: 'hidden' }}>
-                       <LocalVideoTrack track={localCameraTrack} play={true} className={styles.localVideo} />
-                    </div>
-                 )}
             </div>
 
+            {/* Kontrol Butonları (Aynı kalıyor) */}
             <div className={styles.controlsWrapper}>
                 <button className={styles.controlBtn} onClick={() => setMicOn(on => !on)}>
                     {micOn ? <IoMic /> : <IoMicOff style={{ color: '#ff4444' }} />}
@@ -93,6 +107,7 @@ const VideoCallUI = ({ endGroupCall, groupCallViewMode }) => {
     );
 };
 
+// Ana bileşen (Aynı kalıyor)
 const GroupCallView = () => {
     const { groupCall, groupCallViewMode, setGroupCallViewMode, endGroupCall } = useCall();
     const pipRef = useRef(null);
@@ -127,7 +142,7 @@ const GroupCallView = () => {
         <div ref={pipRef} className={containerClasses} style={containerStyle}>
             <AgoraRTCProvider client={client}>
                 {isJoined ? (
-                    <VideoCallUI endGroupCall={endGroupCall} groupCallViewMode={groupCallViewMode}/>
+                    <VideoCallUI endGroupCall={endGroupCall} />
                 ) : (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                         Bağlanılıyor...
