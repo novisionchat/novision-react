@@ -1,4 +1,4 @@
-// src/components/ErrorBoundary.jsx
+// --- DOSYA: src/components/ErrorBoundary.jsx (GÜNCELLENMİŞ HALİ) ---
 import React from 'react';
 
 class ErrorBoundary extends React.Component {
@@ -8,38 +8,41 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    // Bir sonraki render'da hata arayüzünü göstermek için state'i güncelle.
-    return { hasError: true };
+    // Bir sonraki render'da fallback UI'ı göstermek için state'i güncelle.
+    return { hasError: true, error: error };
   }
 
   componentDidCatch(error, errorInfo) {
-    // Hata bilgilerini state'e kaydet ki ekranda gösterebilelim.
+    // Hata bilgisini state'e kaydet
     this.setState({
       error: error,
       errorInfo: errorInfo
     });
-    // Bu hatayı bir log servisine de gönderebilirsin.
-    console.error("ErrorBoundary yakaladı:", error, errorInfo);
+    // İsterseniz bu hatayı bir log servisine de gönderebilirsiniz.
+    console.error("ErrorBoundary caught an error", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
-      // Hata olduğunda gösterilecek özel arayüz
+      // Hata durumunda gösterilecek özel UI
       return (
-        <div style={{ padding: '20px', color: 'white', backgroundColor: '#1a1a1a', height: '100%', overflowY: 'auto' }}>
-          <h1>Uygulamada bir hata oluştu.</h1>
-          <p>Lütfen sayfayı yenilemeyi deneyin.</p>
-          <details style={{ whiteSpace: 'pre-wrap', marginTop: '20px' }}>
+        <div style={{ padding: '20px', color: 'white', backgroundColor: '#1a1a1a', height: '100vh' }}>
+          <h2>Uygulamada bir hata oluştu.</h2>
+          <details style={{ whiteSpace: 'pre-wrap', marginTop: '15px' }}>
             <summary>Hata Detayları</summary>
-            {this.state.error && <h2>{this.state.error.toString()}</h2>}
-            {this.state.errorInfo && <p>{this.state.errorInfo.componentStack}</p>}
+            <pre style={{ color: '#ff79c6', background: '#282a36', padding: '10px', borderRadius: '5px', marginTop: '10px' }}>
+              {this.state.error && this.state.error.toString()}
+              <br />
+              {this.state.errorInfo && this.state.errorInfo.componentStack}
+            </pre>
           </details>
+          <button onClick={() => window.location.reload()} style={{marginTop: '20px'}}>Sayfayı Yenile</button>
         </div>
       );
     }
 
-    // Hata yoksa, içindeki bileşenleri normal şekilde render et.
-    return this.props.children; 
+    // Hata yoksa, normal şekilde alt bileşenleri render et.
+    return this.props.children;
   }
 }
 

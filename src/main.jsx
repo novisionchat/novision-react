@@ -1,24 +1,23 @@
 // --- DOSYA: src/main.jsx ---
 
 import React from 'react';
-import ReactDOM from 'react-dom/client'; // 'react-dom/client' olduğundan emin olun
+import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ChatProvider } from './context/ChatContext';
 import { ToastProvider } from './context/ToastContext';
-import { CallProvider } from './context/CallContext';
+import { CallProvider } from './context/CallContext'; // YENİ
 import ErrorBoundary from './components/ErrorBoundary';
 
 import './index.css';
 
-// React 18 için doğru yöntem budur.
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <ToastProvider>
         <ChatProvider>
-          <CallProvider>
+          <CallProvider> {/* YENİ */}
             <App />
-          </CallProvider>
+          </CallProvider> {/* YENİ */}
         </ChatProvider>
       </ToastProvider>
     </ErrorBoundary>
