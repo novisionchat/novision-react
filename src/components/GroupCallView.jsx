@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/GroupCallView.jsx (DÜZELTİLMİŞ HALİ) ---
+// --- DOSYA: src/components/GroupCallView.jsx (NİHAİ DÜZELTİLMİŞ HALİ) ---
 
 import React, { useRef, useState, useEffect } from 'react';
 import {
@@ -20,11 +20,14 @@ import { IoContract, IoExpand, IoVideocam, IoVideocamOff, IoMic, IoMicOff, IoCal
 
 const AGORA_APP_ID = "c1a39c1b29b24faba92cc2a0c187294d";
 
-// Client'ı component dışında oluşturuyoruz ama state yönetimini içeride sıkı tutacağız.
-const client = AgoraRTC.createClient({ codec: "vp8", mode: "rtc" });
+// --- DÜZELTME 1: Agora Client Yönetimi (EN ÖNEMLİ DEĞİŞİKLİK) ---
+// Client'ı globalde oluşturmak yerine, component içinde useState ile yönetiyoruz.
+// Bu, component her mount olduğunda temiz bir client örneği oluşturulmasını sağlar
+// ve "karşı tarafın medyasının gelmemesi" sorununu çözer.
+// const client = AgoraRTC.createClient({ codec: "vp8", mode: "rtc" }); // <- BU SATIR KALDIRILDI
 
 // Arayüzü içeren bileşen
-const VideoCallUI = ({ endGroupCall }) => {
+const VideoCallUI = ({ endGroupCall, rtcClient }) => { // rtcClient prop olarak alındı
     const [micOn, setMicOn] = useState(true);
     const [cameraOn, setCameraOn] = useState(true);
 
@@ -33,22 +36,22 @@ const VideoCallUI = ({ endGroupCall }) => {
     const { localCameraTrack } = useLocalCameraTrack(cameraOn);
     
     const remoteUsers = useRemoteUsers();
-    const rtcClient = useRTCClient();
+    // useRTCClient hook'u artık prop'tan gelen client'ı kullanacak
+    // const rtcClient = useRTCClient();
 
-    // --- DÜZELTME 2: DONANIM KAPATMA & YAYINLAMA ---
     useEffect(() => {
-        // Trackler hazırsa yayınla
+        if (!rtcClient) return;
+
         if (localMicrophoneTrack && localCameraTrack) {
             rtcClient.publish([localMicrophoneTrack, localCameraTrack]);
         }
 
         return () => {
-            // Component unmount olduğunda (arama bittiğinde)
-            // Önce yayını durdur
-            if (localMicrophoneTrack || localCameraTrack) {
-                rtcClient.unpublish([localMicrophoneTrack, localCameraTrack].filter(Boolean));
+            if (rtcClient.connectionState !== 'DISCONNECTED') {
+                if (localMicrophoneTrack || localCameraTrack) {
+                    rtcClient.unpublish([localMicrophoneTrack, localCameraTrack].filter(Boolean));
+                }
             }
-            // SONRA DONANIMI KAPAT (Işıkların sönmesi için kritik nokta)
             localCameraTrack?.close();
             localMicrophoneTrack?.close();
         };
@@ -73,7 +76,6 @@ const VideoCallUI = ({ endGroupCall }) => {
             <div className={styles.videoGridContainer} style={gridStyle} data-drag-handle="true">
                 
                 {/* KENDİ VİDEOMUZ */}
-                {/* Kamera kapalıysa bile yer kaplaması için div'i her zaman render ediyoruz ama track'i kontrol ediyoruz */}
                 <div className="grid-item" style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '12px', background: '#1a1a1a', position: 'relative' }}>
                     {cameraOn && localCameraTrack ? (
                         <LocalVideoTrack
@@ -91,8 +93,6 @@ const VideoCallUI = ({ endGroupCall }) => {
                 {/* DİĞER KULLANICILAR */}
                 {remoteUsers.map(user => (
                     <div key={user.uid} className="grid-item" style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '12px', background: '#2c2c2c', position: 'relative' }}>
-                        {/* --- DÜZELTME 1: SİYAH EKRAN İÇİN --- */}
-                        {/* RemoteUser'ı user.hasVideo kontrolü ile sarmalıyoruz ve loading durumu ekliyoruz */}
                         <RemoteUser
                             user={user}
                             playVideo={true}
@@ -130,64 +130,72 @@ const GroupCallView = () => {
     const pipRef = useRef(null);
     const { style: draggableStyle } = useDraggable(pipRef);
     const [isJoined, setIsJoined] = useState(false);
-    
-    // --- DÜZELTME 3: ÇİFT KATILIMI ENGELLEME ---
-    // React Strict Mode'da useEffect iki kere çalışır, bu ref ile bunu engelliyoruz.
     const joinRef = useRef(false);
+
+    // --- DÜZELTME 1: Agora Client Yönetimi (DEVAMI) ---
+    // Client'ı burada useState ile oluşturuyoruz.
+    const [client] = useState(() => AgoraRTC.createClient({ codec: "vp8", mode: "rtc" }));
 
     useEffect(() => {
         let isMounted = true;
 
         if (groupCall && !joinRef.current) {
-            joinRef.current = true; // İşlemin başladığını işaretle
+            joinRef.current = true;
 
             const joinChannel = async () => {
                 try {
-                    // Eğer client zaten bağlıysa hata vermemesi için kontrol
                     if (client.connectionState === 'DISCONNECTED') {
                         await client.join(AGORA_APP_ID, groupCall.channelName, groupCall.token, auth.currentUser.uid);
                     }
                     if (isMounted) setIsJoined(true);
                 } catch (error) {
                     console.error("Agora join failed:", error);
-                    // Hata olursa tekrar denemeye izin ver
                     joinRef.current = false; 
                 }
             };
             joinChannel();
         }
 
-        return () => {
-            isMounted = false;
-            // Sayfadan tamamen ayrıldığında veya arama bittiğinde çıkış yap
-            // Ancak sadece groupCall null olduğunda veya bileşen unmount olduğunda
-            if (!groupCall) {
+        // Cleanup function for leaving the channel
+        const cleanup = async () => {
+            if (joinRef.current) {
                 joinRef.current = false;
                 setIsJoined(false);
-                // Trackleri burada kapatmaya gerek yok, VideoCallUI hallediyor.
-                // Sadece odadan çıkıyoruz.
-                client.leave().catch(err => console.log("Leave error:", err));
+                if (client.connectionState !== 'DISCONNECTED') {
+                    await client.leave();
+                }
             }
         };
-    }, [groupCall]);
 
-    // groupCall kapalıysa render etme
+        return () => {
+            isMounted = false;
+            // Component unmount olduğunda veya arama bittiğinde (groupCall null olduğunda) çıkış yap
+            if (!groupCall) {
+                cleanup();
+            }
+        };
+    }, [groupCall, client]);
+
     if (groupCallViewMode === 'closed' || !groupCall) return null;
 
     const containerClasses = `${styles.callContainer} ${groupCallViewMode === 'pip' ? styles.pipScreen : styles.fullScreen}`;
     const containerStyle = groupCallViewMode === 'pip' ? { ...draggableStyle } : {};
 
+    const handleEndCall = async () => {
+        setIsJoined(false);
+        joinRef.current = false;
+        if (client.connectionState !== 'DISCONNECTED') {
+            await client.leave();
+        }
+        endGroupCall();
+    };
+
     return (
         <div ref={pipRef} className={containerClasses} style={containerStyle}>
+            {/* Düzeltilmiş client nesnesini Provider'a veriyoruz */}
             <AgoraRTCProvider client={client}>
                 {isJoined ? (
-                    <VideoCallUI endGroupCall={() => {
-                        // Aramayı bitir butonuna basıldığında
-                        setIsJoined(false);
-                        joinRef.current = false;
-                        client.leave();
-                        endGroupCall();
-                    }} />
+                    <VideoCallUI rtcClient={client} endGroupCall={handleEndCall} />
                 ) : (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                         Bağlanılıyor...
