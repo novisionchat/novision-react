@@ -1,11 +1,11 @@
-// --- DOSYA: src/context/CallContext.jsx (GRUP ARAMA DESTEKLİ NİHAİ VERSİYON) ---
+// --- DOSYA: src/context/CallContext.jsx (TAM VE EKSİKSİZ NİHAİ HALİ) ---
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
 import { ref, set, onValue, remove, serverTimestamp } from 'firebase/database';
 import { useToast } from './ToastContext.jsx';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { useChat } from './ChatContext.jsx'; // Aktif sohbeti almak için eklendi
+import { useChat } from './ChatContext.jsx';
 
 const CallContext = createContext();
 export const useCall = () => useContext(CallContext);
@@ -22,7 +22,7 @@ export const CallProvider = ({ children }) => {
   
   // Grup Aramaları için state'ler
   const [groupCall, setGroupCall] = useState(null);
-  const [isGroupCallActive, setIsGroupCallActive] = useState(false);
+  const [groupCallViewMode, setGroupCallViewMode] = useState('closed'); 
 
   const [localTracks, setLocalTracks] = useState({ audio: null, video: null });
   const [remoteUsers, setRemoteUsers] = useState([]);
@@ -64,7 +64,7 @@ export const CallProvider = ({ children }) => {
     setDmCall(null);
     setDmViewMode('closed');
     setGroupCall(null);
-    setIsGroupCallActive(false);
+    setGroupCallViewMode('closed');
     setIsMicMuted(false);
     setIsCameraOff(false);
     setVideoDevices([]);
@@ -102,16 +102,15 @@ export const CallProvider = ({ children }) => {
     }
     const groupCallRef = ref(db, `group_calls/${activeConversation.id}`);
     const unsubscribe = onValue(groupCallRef, (snapshot) => {
-        if (snapshot.exists() && !isGroupCallActive) {
+        if (snapshot.exists() && groupCallViewMode === 'closed') {
             const callData = snapshot.val();
-            // Toast notification ile kullanıcıyı davet et
             showToast(`${activeConversation.name} grubunda bir görüşme başladı.`, {
                 actions: [{ text: "Katıl", onClick: () => joinGroupCall(callData) }]
             });
         }
     });
     return () => unsubscribe();
-  }, [loggedInUser, activeConversation, isGroupCallActive, showToast]);
+  }, [loggedInUser, activeConversation, groupCallViewMode, showToast]);
 
 
   // Agora event dinleyicileri
@@ -167,27 +166,22 @@ export const CallProvider = ({ children }) => {
         showToast("Zaten bir arama içerisindesiniz.", true);
         return;
     }
-
     const tracks = await prepareMediaTracks(callType);
     if (!tracks) return;
-
     const channelName = `dm_${user.uid}_${calleeId}`;
     const callData = { callId: channelName, channelName, callerId: user.uid, callerName: user.displayName, calleeId, calleeName, status: 'ringing', timestamp: serverTimestamp(), type: callType };
-
     try {
         await set(ref(db, `calls/${calleeId}`), callData);
         await set(ref(db, `calls/${user.uid}`), callData);
         setDmCall(callData);
         const joined = await joinChannel(callData.channelName, user, tracks);
         if(joined) setDmViewMode('pip'); else await endDmCall();
-
     } catch (error) {
         showToast("Arama başlatılamadı.", true);
         tracks.audio?.close(); tracks.video?.close();
         await endDmCall();
     }
   };
-
   const acceptDmCall = async (callData) => {
     const user = auth.currentUser;
     if (!user) return;
@@ -200,7 +194,6 @@ export const CallProvider = ({ children }) => {
     const joined = await joinChannel(activeCallData.channelName, user, tracks);
     if(joined) setDmViewMode('pip'); else await endDmCall();
   };
-
   const declineDmCall = async (callData) => { await remove(ref(db, `calls/${callData.calleeId}`)); await remove(ref(db, `calls/${callData.callerId}`)); if (dmCall && dmCall.callId === callData.callId) { setDmCall(null); } };
 
   const initiateGroupCall = async (group) => {
@@ -209,19 +202,21 @@ export const CallProvider = ({ children }) => {
           return;
       }
       const user = auth.currentUser;
+      const channelName = `group_${group.id}`;
+      const token = await getToken(channelName, user.uid);
+      if (!token) {
+          showToast("Arama başlatılamadı.", true);
+          return;
+      }
       const callData = {
-          groupId: group.id,
-          channelName: `group_${group.id}`,
-          initiatorId: user.uid,
-          initiatorName: user.displayName,
-          groupName: group.name,
-          timestamp: serverTimestamp(),
-          token: null // Token UI Kit tarafından sunucudan istenecek
+          groupId: group.id, channelName, initiatorId: user.uid,
+          initiatorName: user.displayName, groupName: group.name,
+          timestamp: serverTimestamp(), token: token
       };
-
       try {
           await set(ref(db, `group_calls/${group.id}`), callData);
-          await joinGroupCall(callData); // Aramayı başlatan kişi direkt katılır
+          setGroupCall(callData);
+          setGroupCallViewMode('full'); // Aramayı başlatan için direkt tam ekran aç
       } catch (error) {
           showToast("Grup araması başlatılamadı.", true);
           console.error("Grup araması başlatma hatası:", error);
@@ -229,19 +224,18 @@ export const CallProvider = ({ children }) => {
   };
 
   const joinGroupCall = async (callData) => {
-      if (isGroupCallActive) return; // Zaten arama içindeyse tekrar katılma
+      if (groupCallViewMode !== 'closed') return;
       const user = auth.currentUser;
       const token = await getToken(callData.channelName, user.uid);
       if (!token) {
-          showToast("Arama token'ı alınamadı.", true);
+          showToast("Aramaya katılamadı.", true);
           return;
       }
       const callDataWithToken = { ...callData, token };
       setGroupCall(callDataWithToken);
-      setIsGroupCallActive(true);
+      setGroupCallViewMode('full'); // Katılan için de direkt tam ekran aç
   };
-
-
+  
   const toggleMic = async () => { if (!tracksRef.current.audio) return; try { const newMutedState = !isMicMuted; await tracksRef.current.audio.setEnabled(!newMutedState); setIsMicMuted(newMutedState); } catch (error) { console.error("Mikrofon durumu değiştirilemedi:", error); } };
   const toggleCamera = async () => { if (!tracksRef.current.video) return; try { const newCameraOffState = !isCameraOff; await tracksRef.current.video.setEnabled(!newCameraOffState); setIsCameraOff(newCameraOffState); } catch (error) { console.error("Kamera durumu değiştirilemedi:", error); } };
   const flipCamera = async () => { if (isCameraOff || !tracksRef.current.video || videoDevices.length < 2) { return; } try { const nextIndex = (currentVideoDeviceIndex + 1) % videoDevices.length; const nextDevice = videoDevices[nextIndex]; await tracksRef.current.video.setDevice(nextDevice.deviceId); setCurrentVideoDeviceIndex(nextIndex); } catch (e) { console.error("Kamera çevirme hatası:", e); } };
@@ -254,16 +248,17 @@ export const CallProvider = ({ children }) => {
     viewMode: dmViewMode, 
     setViewMode: setDmViewMode, 
     localTracks, remoteUsers, 
-    initiateCall: initiateDmCall, // initiateCall artık initiateDmCall'ı çağıracak
+    initiateCall: initiateDmCall,
     isMicMuted, isCameraOff, videoDevices,
     toggleMic, toggleCamera, flipCamera,
     // Grup
     groupCall,
-    isGroupCallActive,
+    groupCallViewMode,
+    setGroupCallViewMode,
     initiateGroupCall,
     joinGroupCall,
     endGroupCall
   };
 
-  return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
+  return <CallContext.Provider value={value}>{children}</Call.Provider>;
 };
