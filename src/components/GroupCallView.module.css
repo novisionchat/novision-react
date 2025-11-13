@@ -1,25 +1,23 @@
-/* --- DOSYA: src/components/GroupCallView.module.css (TÜM SORUNLARI ÇÖZEN NİHAİ HAL) --- */
+/* --- DOSYA: src/components/GroupCallView.module.css (NİHAİ VE TAM ÇALIŞAN HAL) --- */
 
 .callContainer {
     display: flex;
     flex-direction: column;
     background-color: #1a1a1a;
     color: white;
+    transition: width 0.3s ease, height 0.3s ease, transform 0s; /* Transform anlık olmalı */
     overflow: hidden;
     position: relative;
-    /* Sadece PiP modundayken sürükleme imleci göster */
 }
 
-/* Tam ekran modunun sohbet panelini ezmesini engelleyen stil */
+/* Tam ekran modu, artık viewport'u değil, kendi kapsayıcısını doldurur */
 .maximizedView {
     width: 100%;
     height: 100%;
-    border-radius: 0;
 }
 
 .pipScreen {
-    position: fixed;
-    /* useDraggable başlangıç pozisyonunu yönetecek, bunlar fallback */
+    position: fixed; /* Sadece PiP modundayken fixed olacak */
     bottom: 20px;
     right: 20px;
     width: 360px;
@@ -28,32 +26,42 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     z-index: 2501;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-    cursor: move; /* Sürükleme imlecini burada tanımla */
+    /* useDraggable hook'u imleci yönetecek */
+    cursor: move;
 }
 
-/* SÜRÜKLEME SORUNUNU ÇÖZEN ŞEFFAF KATMAN */
+/* --- SÜRÜKLEME ÇÖZÜMÜ --- */
 .dragHandle {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    /* Butonlara tıklamayı engellememesi için customControls'den düşük z-index */
-    z-index: 9000; 
-    /* Bu sayede alttaki video görünür, ama fare olaylarını bu katman yakalar */
+    /* Butonlar hariç üst kısmı kaplar, böylece butonlara tıklanabilir */
+    height: calc(100% - 80px); 
+    z-index: 1; /* Agora arayüzünün üzerinde ama customControls'un altında */
+    /* Görünmez ama fare olaylarını yakalar */
     background-color: transparent;
 }
 
+
+/* Agora bileşenini saran ve borderRadius'ı devralmasını sağlayan wrapper */
+.agoraWrapper {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    border-radius: inherit; /* Ana kapsayıcının border-radius'unu alır */
+    overflow: hidden; /* İçeriğin taşmasını engeller */
+}
+
+/* Küçült/Büyüt butonları */
 .customControls {
     position: absolute;
     top: 15px;
     right: 15px;
-    /* Drag handle'ın üzerinde olmalı ki tıklanabilsin */
-    z-index: 9999; 
+    z-index: 2; /* Sürükleme alanının üzerinde olmalı */
     display: flex;
     gap: 8px;
 }
-
 .pipScreen .customControls {
     top: 8px;
     right: 8px;
@@ -69,10 +77,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
     transition: background-color 0.2s;
+    cursor: pointer;
 }
-
 .controlBtn:hover {
     background-color: rgba(255, 255, 255, 0.4);
 }
