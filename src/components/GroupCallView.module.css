@@ -1,13 +1,14 @@
-/* --- DOSYA: src/components/GroupCallView.module.css (YENİLENMİŞ HALİ) --- */
+/* --- DOSYA: src/components/GroupCallView.module.css (GÜNCELLENMİŞ HALİ) --- */
 
 .callContainer {
     display: flex;
     flex-direction: column;
-    background-color: #111;
+    background-color: #111; /* DM arayüzü ile aynı arkaplan */
     color: white;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
     transition: all 0.3s ease-in-out;
+    overflow: hidden !important;
+    position: relative; /* Butonları doğru konumlandırmak için */
 }
 
 .fullScreen {
@@ -25,57 +26,50 @@
     bottom: 20px;
     right: 20px;
     width: 320px;
-    max-width: 90vw;
     height: 240px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     z-index: 2501;
+    cursor: move; /* Sürüklenebilir olduğunu belirtir */
 }
 
-.videoGrid {
-    flex-grow: 1;
-    position: relative;
-    width: 100%;
-    height: 100%;
-}
-
-.controlsContainer {
+/* Küçült/Büyüt butonları için özel alan */
+.customControls {
     position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-    opacity: 1;
-    transition: opacity 0.3s ease-in-out;
+    top: 10px;
+    right: 10px;
+    z-index: 9999; /* Agora kitinin kontrollerinin üstünde olsun */
+    display: flex;
+    gap: 8px;
 }
 
-.pipScreen .controlsContainer {
-    bottom: 10px;
+.pipScreen .customControls {
+    top: 5px;
+    right: 5px;
 }
 
-/* Kendi küçük yerel video penceremiz */
-.localUserView {
-    position: absolute;
-    bottom: 100px; /* Kontrollerin üstünde */
-    right: 20px;
-    width: 120px;
-    height: 160px;
-    border-radius: 10px;
-    overflow: hidden;
-    z-index: 5;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    border: 2px solid rgba(255,255,255,0.2);
-    background: #000;
-    transition: all 0.3s ease;
+.controlBtn {
+    /* DM arayüzündeki header butonları gibi yapalım */
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
 }
 
-.pipScreen .localUserView {
-    display: none; /* PIP modunda zaten herkes gridde, buna gerek yok */
+.controlBtn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
-.localUserView video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
+/* Mobil Cihazlar İçin */
+@media (max-width: 768px) {
+    .pipScreen {
+        width: 150px;
+        height: 200px;
+    }
 }
