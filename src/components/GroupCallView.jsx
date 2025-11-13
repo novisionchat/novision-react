@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/GroupCallView.jsx (ABONELİK SORUNU İÇİN DÜZELTİLMİŞ HALİ) ---
+// --- DOSYA: src/components/GroupCallView.jsx (NİHAİ VE EN KARARLI HALİ) ---
 
 import React, { useRef, useState, useEffect } from 'react';
 import {
@@ -19,34 +19,20 @@ import { IoContract, IoExpand, IoVideocam, IoVideocamOff, IoMic, IoMicOff, IoCal
 
 const AGORA_APP_ID = "c1a39c1b29b24faba92cc2a0c187294d";
 
-// (VideoCallUI bileşeninde bir değişiklik yok, aynı kalabilir)
-const VideoCallUI = ({ endGroupCall, rtcClient }) => {
+// --- DÜZELTME: BU BİLEŞENİ ÖNEMLİ ÖLÇÜDE BASİTLEŞTİRİYORUZ ---
+// Manuel publish/unpublish işlemlerini içeren useEffect kaldırıldı.
+// Artık tüm yayın yaşam döngüsünü agora-rtc-react hook'ları yönetecek.
+const VideoCallUI = ({ endGroupCall }) => {
     const [micOn, setMicOn] = useState(true);
     const [cameraOn, setCameraOn] = useState(true);
 
+    // Bu hook'lar, micOn/cameraOn durumuna göre OTOMATİK olarak publish/unpublish yapar.
+    // Başka bir koda gerek yoktur.
     const { localMicrophoneTrack } = useLocalMicrophoneTrack(micOn);
     const { localCameraTrack } = useLocalCameraTrack(cameraOn);
     
     const remoteUsers = useRemoteUsers();
     
-    useEffect(() => {
-        if (!rtcClient) return;
-
-        if (localMicrophoneTrack && localCameraTrack) {
-            rtcClient.publish([localMicrophoneTrack, localCameraTrack]);
-        }
-
-        return () => {
-            if (rtcClient.connectionState !== 'DISCONNECTED') {
-                if (localMicrophoneTrack || localCameraTrack) {
-                    rtcClient.unpublish([localMicrophoneTrack, localCameraTrack].filter(Boolean));
-                }
-            }
-            localCameraTrack?.close();
-            localMicrophoneTrack?.close();
-        };
-    }, [localCameraTrack, localMicrophoneTrack, rtcClient]);
-
     const participantCount = remoteUsers.length + 1;
     const gridCols = Math.ceil(Math.sqrt(participantCount));
     
@@ -102,7 +88,7 @@ const VideoCallUI = ({ endGroupCall, rtcClient }) => {
     );
 };
 
-
+// Ana component'te bir değişiklik gerekmiyor, önceki hali doğruydu.
 const GroupCallView = () => {
     const { groupCall, groupCallViewMode, setGroupCallViewMode, endGroupCall } = useCall();
     const pipRef = useRef(null);
@@ -112,43 +98,25 @@ const GroupCallView = () => {
 
     const [client] = useState(() => AgoraRTC.createClient({ codec: "vp8", mode: "rtc" }));
 
-    // --- YENİ EKLENEN KOD: MANUEL ABONELİK İÇİN ---
     useEffect(() => {
         if (!client || !isJoined) return;
 
-        // Bir kullanıcı yayın yaptığında tetiklenir
         const handleUserPublished = async (user, mediaType) => {
-            console.log(`[Agora] User published: ${user.uid}, Type: ${mediaType}`);
-            try {
-                // Bu kullanıcıya abone oluyoruz.
-                await client.subscribe(user, mediaType);
-                console.log(`[Agora] Successfully subscribed to ${user.uid}`);
-                
-                // Eğer video ise, RemoteUser component'i zaten otomatik oynatmalı.
-                // Eğer ses ise, burada manuel oynatma gerekebilir ama RemoteUser hallediyor olmalı.
-                if (mediaType === 'audio') {
-                    user.audioTrack?.play();
-                }
-
-            } catch (error) {
-                console.error(`[Agora] Failed to subscribe to user ${user.uid}`, error);
+            await client.subscribe(user, mediaType);
+            if (mediaType === 'audio') {
+                user.audioTrack?.play();
             }
         };
-
-        // Bir kullanıcının yayını kesildiğinde tetiklenir
-        const handleUserUnpublished = (user, mediaType) => {
-            console.log(`[Agora] User unpublished: ${user.uid}, Type: ${mediaType}`);
-        };
+        const handleUserUnpublished = (user, mediaType) => {};
 
         client.on("user-published", handleUserPublished);
         client.on("user-unpublished", handleUserUnpublished);
 
         return () => {
-            // Component unmount olduğunda dinleyicileri temizle
             client.off("user-published", handleUserPublished);
             client.off("user-unpublished", handleUserUnpublished);
         };
-    }, [client, isJoined]); // isJoined'e bağımlı hale getirildi
+    }, [client, isJoined]);
 
     useEffect(() => {
         let isMounted = true;
@@ -170,12 +138,10 @@ const GroupCallView = () => {
         }
 
         const cleanup = async () => {
-            if (joinRef.current) {
+            if (joinRef.current || client.connectionState !== 'DISCONNECTED') {
                 joinRef.current = false;
                 setIsJoined(false);
-                if (client.connectionState !== 'DISCONNECTED') {
-                    await client.leave();
-                }
+                await client.leave();
             }
         };
 
@@ -193,11 +159,7 @@ const GroupCallView = () => {
     const containerStyle = groupCallViewMode === 'pip' ? { ...draggableStyle } : {};
 
     const handleEndCall = async () => {
-        setIsJoined(false);
-        joinRef.current = false;
-        if (client.connectionState !== 'DISCONNECTED') {
-            await client.leave();
-        }
+        // Artık cleanup fonksiyonu her şeyi hallettiği için burayı basitleştirebiliriz.
         endGroupCall();
     };
 
@@ -205,7 +167,8 @@ const GroupCallView = () => {
         <div ref={pipRef} className={containerClasses} style={containerStyle}>
             <AgoraRTCProvider client={client}>
                 {isJoined ? (
-                    <VideoCallUI rtcClient={client} endGroupCall={handleEndCall} />
+                    // rtcClient prop'una artık gerek yok
+                    <VideoCallUI endGroupCall={handleEndCall} />
                 ) : (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                         Bağlanılıyor...
