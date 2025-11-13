@@ -1,4 +1,4 @@
-// --- DOSYA: src/context/CallContext.jsx (TAM VE EKSİKSİZ NİHAİ HALİ) ---
+// --- DOSYA: src/context/CallContext.jsx (YAZIM HATASI DÜZELTİLMİŞ HALİ) ---
 
 import React, { createContext, useState, useContext, useCallback, useEffect, useRef } from 'react';
 import { auth, db } from '../lib/firebase';
@@ -260,5 +260,5 @@ export const CallProvider = ({ children }) => {
     endGroupCall
   };
 
-  return <CallContext.Provider value={value}>{children}</Call.Provider>;
+  return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 };
