@@ -1,9 +1,10 @@
-// --- DOSYA: src/components/ChatArea.jsx (TAM VE GÜNCELLENMİŞ HALİ) ---
+// --- DOSYA: src/components/ChatArea.jsx ---
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '../context/ChatContext';
 import { listenForMessages, sendMessage, deleteMessage, toggleReaction } from '../lib/chat';
 import { listenToTyping, setTypingStatus } from '../lib/typing';
+// GÜNCELLEME: Her iki fonksiyonu da import ediyoruz.
 import { markMessagesAsRead, listenForAndMarkNewMessagesAsRead } from '../lib/messageStatus';
 import { listenToUserPresence, getPresenceText, formatLastSeen } from '../lib/presence';
 import { uploadToCloudinary } from '../lib/cloudinary';
@@ -28,7 +29,7 @@ import GifPicker from './GifPicker';
 
 function ChatArea({ onToggleSidebar, onChessButtonClick }) {
   const { activeConversation: activeChat, activeChannelId } = useChat();
-  const { initiateCall, initiateGroupCall } = useCall(); // Hem DM hem grup arama fonksiyonu
+  const { initiateCall } = useCall();
   const currentUser = auth.currentUser;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -83,9 +84,11 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     return () => { unsubMessages(); unsubTyping(); };
   }, [activeChat, activeChannelId, currentUser]);
 
+  // --- GÜNCELLENMİŞ useEffect BLOKU ---
   useEffect(() => {
     if (!activeChat || !currentUser) return;
 
+    // 1. Mevcut (sohbete girildiğindeki) okunmamış mesajları temizle
     const markAsReadIfFocused = () => {
       if (document.hasFocus()) {
         markMessagesAsRead(activeChat.id, activeChat.type, currentUser.uid);
@@ -93,9 +96,13 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     };
     markAsReadIfFocused(); 
 
+    // 2. YENİ: Yeni gelen mesajları anlık olarak dinle ve okundu olarak işaretle
     const unsubFromNewMessages = listenForAndMarkNewMessagesAsRead(activeChat.id, activeChat.type, currentUser.uid);
+
+    // 3. Pencereye tekrar odaklanıldığında eski okunmamışları temizlemek için dinleyici ekle
     window.addEventListener('focus', markAsReadIfFocused);
 
+    // 4. Karşı tarafın çevrimiçi durumunu dinle
     let unsubPresence = () => {};
     if (activeChat.type === 'dm' && activeChat.otherUserId) {
       unsubPresence = listenToUserPresence(activeChat.otherUserId, ({ presence, lastSeen }) => {
@@ -105,12 +112,14 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
       setOpponentStatus('Grup Sohbeti');
     }
 
+    // --- TEMİZLİK FONKSİYONU ---
+    // Component kaldırıldığında veya sohbet değiştiğinde tüm dinleyicileri kapat
     return () => {
       window.removeEventListener('focus', markAsReadIfFocused);
       unsubPresence();
-      unsubFromNewMessages();
+      unsubFromNewMessages(); // YENİ: Anlık mesaj dinleyicisini kapat
     };
-  }, [activeChat, currentUser]);
+  }, [activeChat, currentUser]); // activeChannelId'a gerek yoksa kaldırılabilir.
   
   const handleToggleReaction = useCallback((messageId, emoji) => { 
     if (!activeChat || !currentUser) return;
@@ -241,18 +250,14 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     }
   };
 
-  const handleInitiateDmCall = (callType) => {
+  const handleInitiateCall = (callType) => {
     if (activeChat.type === 'dm' && currentUser) {
       initiateCall(activeChat.otherUserId, activeChat.name, currentUser, callType);
+    } else {
+      alert("Grup aramaları yakında eklenecektir.");
     }
   };
   
-  const handleInitiateGroupCall = () => {
-      if (activeChat.type === 'group' && currentUser) {
-          initiateGroupCall(activeChat);
-      }
-  };
-
   if (!activeChat) {
     return (
       <main className={styles.chatArea}>
@@ -278,13 +283,13 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
           <div className={styles.headerActions}>
             {activeChat.type === 'dm' ? (
               <>
-                <button onClick={() => handleInitiateDmCall('audio')} className={styles.headerActionBtn} title="Sesli Ara"><IoCallOutline size={22} /></button>
-                <button onClick={() => handleInitiateDmCall('video')} className={styles.headerActionBtn} title="Görüntülü Ara"><IoVideocamOutline size={22} /></button>
+                <button onClick={() => handleInitiateCall('audio')} className={styles.headerActionBtn} title="Sesli Ara"><IoCallOutline size={22} /></button>
+                <button onClick={() => handleInitiateCall('video')} className={styles.headerActionBtn} title="Görüntülü Ara"><IoVideocamOutline size={22} /></button>
                 <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
               </>
             ) : (
               <>
-                <button onClick={handleInitiateGroupCall} className={styles.headerActionBtn} title="Grup Araması Başlat"><IoVideocamOutline size={22} /></button>
+                <button onClick={() => handleInitiateCall('video')} className={styles.headerActionBtn} title="Grup Araması Başlat"><IoVideocamOutline size={22} /></button>
                 <button onClick={onChessButtonClick} className={styles.headerActionBtn} title="Satranç Oyna"><FaChessPawn size={20} /></button>
                 <button className={styles.headerActionBtn} title="Grup Ayarları" onClick={() => setIsGroupSettingsOpen(true)}><IoSettingsOutline size={22} /></button>
               </>

@@ -1,33 +1,30 @@
-// --- DOSYA: src/hooks/useDraggable.js (GÜNCELLENMİŞ HALİ) ---
+// --- DOSYA: src/hooks/useDraggable.js (GÜNCELLENMİŞ VE DAHA STABİL HALİ) ---
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export const useDraggable = (elRef, initialPosition = { x: 0, y: 0 }) => {
   const [position, setPosition] = useState(initialPosition);
   const isDraggingRef = useRef(false);
+  // Hem fare pozisyonunu hem de eleman başlangıç pozisyonunu tutmak yerine,
+  // sadece tıklama anındaki "offset"i (fare ile elemanın köşesi arasındaki mesafe) tutacağız.
+  // Bu, "atlama" sorununu çözer.
   const offsetRef = useRef({ x: 0, y: 0 });
-  const dragHandleRef = useRef(null); // Tutma sapını referans olarak sakla
 
   const getEventCoords = (e) => {
     return e.touches ? e.touches[0] : e;
   };
 
   const handleDragStart = useCallback((e) => {
-    // Sürüklenmemesi gereken alanları kontrol et
+    // Sürüklenmemesi gereken alanları kontrol etme mantığı aynı kalıyor.
     if (e.target.closest('button, input, a, [data-drag-ignore="true"]')) {
-      return;
-    }
-    
-    const handle = dragHandleRef.current;
-    
-    // Eğer bir tutma sapı (handle) tanımlıysa ve tıklama onun dışındaysa, sürüklemeyi başlatma.
-    if (handle && !handle.contains(e.target)) {
       return;
     }
 
     const coords = getEventCoords(e);
     isDraggingRef.current = true;
     
+    // Yeni mantık: Farenin tıklama anındaki pozisyonu ile 
+    // elemanın mevcut pozisyonu arasındaki farkı (offset) kaydet.
     offsetRef.current = {
       x: coords.clientX - position.x,
       y: coords.clientY - position.y,
@@ -39,6 +36,8 @@ export const useDraggable = (elRef, initialPosition = { x: 0, y: 0 }) => {
       e.preventDefault();
       const coords = getEventCoords(e);
       
+      // Yeni mantık: Elemanın yeni pozisyonunu, farenin mevcut pozisyonundan
+      // başlangıçtaki offset'i çıkararak bul. Bu sayede eleman fareyi takip eder.
       setPosition({
         x: coords.clientX - offsetRef.current.x,
         y: coords.clientY - offsetRef.current.y,
@@ -53,9 +52,6 @@ export const useDraggable = (elRef, initialPosition = { x: 0, y: 0 }) => {
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
-
-    // Sadece bir kere sorgulama yap
-    dragHandleRef.current = el.querySelector('[data-drag-handle="true"]');
 
     const moveOptions = { passive: false };
 
@@ -80,32 +76,15 @@ export const useDraggable = (elRef, initialPosition = { x: 0, y: 0 }) => {
     };
   }, [elRef, handleDragStart, handleDragMove, handleDragEnd]);
 
-  // Sürükleme sapı varsa imleci sadece o sapa ata, yoksa tüm elemana ata
-  useEffect(() => {
-      const el = elRef.current;
-      if (!el) return;
-      const handle = dragHandleRef.current;
-      const target = handle || el;
-
-      const setCursor = () => target.style.cursor = 'move';
-      const unsetCursor = () => target.style.cursor = '';
-
-      target.addEventListener('mouseover', setCursor);
-      target.addEventListener('mouseout', unsetCursor);
-      
-      return () => {
-          target.removeEventListener('mouseover', setCursor);
-          target.removeEventListener('mouseout', unsetCursor);
-      }
-  }, [elRef]);
-
   return {
     style: {
       position: 'fixed',
       top: 0,
       left: 0,
       transform: `translate(${position.x}px, ${position.y}px)`,
-      cursor: isDraggingRef.current ? 'grabbing' : '', // 'move' imlecini useEffect ile yönet
+      // Hook'un kendisi tarafından cursor ataması yapmak daha merkezi bir kontrol sağlar.
+      // CSS'te ayrıca yönetilebilir, ancak burada olması da mantıklıdır.
+      cursor: isDraggingRef.current ? 'grabbing' : 'move',
     },
   };
 };

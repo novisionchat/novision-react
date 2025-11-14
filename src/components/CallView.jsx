@@ -1,6 +1,6 @@
 // --- DOSYA: src/components/CallView.jsx (GÜNCELLENMİŞ HALİ) ---
 
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react'; // --- GÜNCELLENDİ: useMemo eklendi
 import { useCall } from '../context/CallContext.jsx';
 import { useDraggable } from '../hooks/useDraggable.js';
 import styles from './CallView.module.css';
@@ -21,10 +21,12 @@ const CallView = () => {
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
+    // --- YENİ ---: Pencerenin başlangıç pozisyonunu sağ üste ayarlamak için.
+    // Tıpkı ChessGame bileşenindeki gibi.
     const initialPipPosition = useMemo(() => {
         if (typeof window === 'undefined') return { x: 0, y: 0 };
         const windowWidth = window.innerWidth;
-        const pipWidth = 280;
+        const pipWidth = 280; // .pipWindow'un CSS'teki genişliği
         const margin = 20;
         return {
             x: windowWidth - pipWidth - margin,
@@ -32,6 +34,7 @@ const CallView = () => {
         };
     }, []);
 
+    // --- GÜNCELLENDİ ---: useDraggable hook'una hesaplanan başlangıç pozisyonu eklendi.
     const { style: draggableStyle } = useDraggable(pipRef, initialPipPosition);
     
 
@@ -94,14 +97,17 @@ const CallView = () => {
 
     const isVideoCall = call.type === 'video';
 
+    // --- GÜNCELLENDİ ---: Sesli arama PIP penceresini kare yapmak için mantık eklendi.
     const pipDynamicStyle = {};
     if (viewMode === 'pip') {
         const baseWidth = 280;
         pipDynamicStyle.width = `${baseWidth}px`;
         
         if (isVideoCall) {
+            // Görüntülü arama ise yüksekliği video oranına göre ayarla
             pipDynamicStyle.height = `${baseWidth / videoAspectRatio}px`;
         } else {
+            // Sesli arama ise yüksekliği genişlikle aynı yap (kare)
             pipDynamicStyle.height = `${baseWidth}px`;
         }
     }
@@ -125,9 +131,9 @@ const CallView = () => {
             className={containerClass}
             style={containerStyle}
             onClick={showControls}
-            // --- GÜNCELLENDİ ---: onMouseMove buradan kaldırıldı çünkü sürükleme ile çakışıyordu.
+            onMouseMove={showControls}
         >
-            <div className={`${styles.pipHeader} ${!controlsVisible ? styles.controlsHidden : ''}`} data-drag-handle="true">
+            <div className={`${styles.pipHeader} ${!controlsVisible ? styles.controlsHidden : ''}`} data-drag-handle>
                 <span>{otherUserName} ile görüşme</span>
                 <div className={styles.pipControls}>
                     {viewMode === 'pip' ? (
@@ -138,8 +144,7 @@ const CallView = () => {
                     <button onClick={(e) => { e.stopPropagation(); endCall(); }} title="Kapat"><IoClose /></button>
                 </div>
             </div>
-            {/* --- GÜNCELLENDİ ---: onMouseMove olayı iç panele taşındı. */}
-            <div className={styles.pipContent} onMouseMove={showControls}>
+            <div className={styles.pipContent}>
                 {isVideoCall ? (
                     <>
                         <div className={styles.remoteVideoContainer}>
