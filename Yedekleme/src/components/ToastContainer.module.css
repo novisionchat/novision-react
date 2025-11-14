@@ -1,0 +1,60 @@
+/* src/components/ToastContainer.module.css */
+.toastContainer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: var(--text-dark);
+    background-color: var(--accent-color);
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    opacity: 0;
+    transform: translateX(100%);
+    animation: slideIn 0.5s forwards;
+    min-width: 300px;
+}
+
+.toast.error {
+    background-color: var(--danger-color);
+    color: var(--text-primary);
+}
+
+.toastActions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.toastActions button {
+    background-color: rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.2);
+    color: var(--text-dark);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.toast.error .toastActions button {
+    background-color: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.3);
+    color: var(--text-primary);
+}
+
+@keyframes slideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

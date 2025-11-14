@@ -1,0 +1,47 @@
+/* src/components/ContextMenu.module.css */
+.contextMenu {
+    position: fixed;
+    z-index: 3000;
+    background-color: var(--ui-bg-light);
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 180px;
+
+    /* --- YENİ EKLENEN SATIRLAR --- */
+    -webkit-user-select: none; /* Safari, Chrome, Opera, Android */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* Internet Explorer/Edge */
+    user-select: none;         /* Standart sözdizimi */
+    /* --- BİTİŞ --- */
+}
+
+.menuBtn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-align: left;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.menuBtn:hover {
+    background-color: var(--other-message-bg);
+}
+
+.menuBtn.danger {
+    color: var(--danger-color);
+}
+
+.menuBtn.danger:hover {
+    background-color: rgba(229, 57, 53, 0.1);
+}

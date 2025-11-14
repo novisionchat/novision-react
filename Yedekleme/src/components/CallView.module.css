@@ -1,0 +1,192 @@
+/* --- DOSYA: src/components/CallView.module.css (Tam ve Eksiksiz Hali) --- */
+
+.pipContainer {
+    display: flex;
+    flex-direction: column;
+    background-color: #000;
+    border: 1px solid var(--border-color, #2a2a2a);
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    overflow: hidden;
+    color: #fff;
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.pipWindow {
+    position: fixed;
+    z-index: 1001;
+    width: 280px; 
+    max-width: 90vw;
+    min-height: 150px; 
+    bottom: 20px;
+    right: 20px;
+}
+
+.fullWindow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: var(--call-height, 100vh);
+    z-index: 2000;
+    border: none;
+    border-radius: 0;
+}
+
+.pipHeader {
+    background-color: rgba(0,0,0,0.5);
+    padding: 8px 12px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.pipControls button {
+    background: none; border: none; color: #fff; cursor: pointer;
+    padding: 5px; border-radius: 50%;
+}
+
+.pipContent { 
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: #111;
+    display: flex;
+    flex-direction: column;
+}
+
+.remoteVideoContainer {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remoteVideoContainer video,
+.localVideoContainer video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.localVideoContainer {
+    position: absolute;
+    bottom: 100px;
+    right: 30px;
+    width: 120px;
+    height: 180px;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 5;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.2);
+    background: #000;
+    transition: all 0.3s ease;
+}
+
+.pipWindow .localVideoContainer {
+    width: 80px;
+    height: 120px;
+    bottom: 15px;
+    right: 15px;
+    border-width: 1px;
+}
+
+.localVideoContainer video {
+    transform: scaleX(-1);
+}
+
+.waitingText {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #aaa;
+    z-index: 2;
+}
+
+.callControls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+    background-color: rgba(0,0,0,0.6);
+    padding: 12px 25px;
+    border-radius: 50px;
+    z-index: 10;
+    opacity: 1;
+    transition: all 0.3s ease-in-out;
+}
+
+.controlsHidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.callControls button {
+    background-color: rgba(255,255,255,0.2);
+    border: none; color: #fff;
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.callControls button:hover { background-color: rgba(255,255,255,0.4); }
+.callControls button:disabled { opacity: 0.5; cursor: not-allowed; }
+.callControls button.danger { background-color: #ff4444; }
+.endCallBtn { background-color: #ff4444 !important; transform: rotate(135deg); }
+
+.pipWindow .callControls {
+    gap: 10px;
+    padding: 8px 15px;
+    bottom: 15px;
+}
+
+.pipWindow .callControls button {
+    width: 40px;
+    height: 40px;
+}
+
+.audioCallContainer {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1a1a1a, #0d0d0d);
+    z-index: 2;
+}
+
+.audioCallAvatar {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    margin-bottom: 20px;
+    border: 3px solid var(--accent-color);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(255, 255, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+/* YENİ EKLENEN KURAL: Grup aramasında tam ekrandayken küçük yerel videoyu gizle */
+.fullWindow .localVideoContainer {
+    display: none;
+}

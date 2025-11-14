@@ -1,0 +1,81 @@
+/* src/components/ConversationItem.module.css */
+.conversationItem { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    padding: 10px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    transition: background-color 0.2s;
+    position: relative; 
+    user-select: none;
+}
+.conversationItem:hover, .conversationItem.active { 
+    background-color: var(--ui-bg-light); 
+}
+.avatarWrapper { 
+    position: relative; 
+    width: 48px; 
+    height: 48px; 
+    flex-shrink: 0; 
+}
+.avatarWrapper img { 
+    width: 48px; 
+    height: 48px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+}
+.details { 
+    overflow: hidden; 
+    flex: 1; 
+}
+.name { 
+    display: block; 
+    font-weight: 500; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+.preview { 
+    display: block; 
+    font-size: 0.9em; 
+    color: var(--text-secondary); 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+.presenceBadge {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--panel-bg);
+}
+.presenceBadge.online { background-color: #43b581; }
+.presenceBadge.away { background-color: #faa61a; }
+.presenceBadge.busy { background-color: #f04747; }
+.presenceBadge.offline { display: none; }
+
+/* --- YENİ EKLENEN STİLLER --- */
+.meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-left: auto;
+    padding-left: 10px;
+    height: 100%;
+}
+
+.unreadBadge {
+    background-color: var(--accent-color);
+    color: var(--text-dark);
+    font-size: 0.75em;
+    font-weight: bold;
+    padding: 3px 7px;
+    border-radius: 12px;
+    min-width: 22px;
+    text-align: center;
+}

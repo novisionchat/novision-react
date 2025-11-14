@@ -1,0 +1,57 @@
+/* --- DOSYA: src/components/MessageBubble.module.css --- */
+.swipeContainer { position: relative; display: flex; width: 100%; padding: 2px 0; }
+.benimMesajimContainer { justify-content: flex-end; }
+.swipeAction { position: absolute; left: 20px; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: var(--text-primary); }
+.messageWrapper { display: flex; flex-direction: row; gap: 8px; user-select: none; width: fit-content; max-width: 75%; transition: transform 0.2s ease-out; }
+.benimMesajim { flex-direction: row-reverse; }
+.messageAvatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; align-self: flex-end; cursor: pointer; margin-bottom: 4px; }
+.messageContentWrapper { display: flex; flex-direction: column; max-width: 100%; position: relative; }
+.messageBubble { word-wrap: break-word; padding: 8px 12px; position: relative; font-size: 0.9em; line-height: 1.5; border-radius: 18px; display: flex; flex-direction: column; }
+.benimMesajim .messageBubble { background-color: var(--my-message-bg); color: var(--text-dark); border-radius: 18px 4px 18px 18px; }
+.digerMesaj .messageBubble { background-color: var(--other-message-bg); color: var(--text-primary); border-radius: 4px 18px 18px 18px; }
+.senderName { font-weight: 500; font-size: 0.85em; color: var(--accent-color); margin-bottom: 4px; }
+.messageText { word-break: break-word; }
+.messageMeta { align-self: flex-end; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.messageTime { font-size: 0.7em; color: var(--text-secondary); opacity: 0.8; }
+.benimMesajim .messageTime { color: rgba(0,0,0,0.6); }
+.replyQuote { order: -1; background: rgba(0,0,0,0.1); padding: 8px; margin: -2px -6px 8px; border-left: 3px solid var(--info-color); border-radius: 4px; font-size: 0.8em; }
+.digerMesaj .replyQuote { border-left-color: var(--accent-color); background: rgba(255,255,255,0.1); }
+.replyQuote .sender { font-weight: 500; }
+.replyQuote .text { font-style: italic; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.messageMeta svg { width: 16px; height: 16px; color: var(--text-secondary); }
+.benimMesajim .messageMeta svg { color: rgba(0,0,0,0.6); }
+.readIcon { color: var(--info-color) !important; }
+.reactionsContainer { display: flex; gap: 4px; margin-top: -8px; margin-bottom: 8px; z-index: 1; align-self: flex-start; }
+.benimMesajim .reactionsContainer { align-self: flex-end; }
+.reaction { background-color: var(--other-message-bg); border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 10px; font-size: 0.8em; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: background-color 0.2s; }
+.reaction:hover { border-color: var(--accent-color); }
+.reactionCount { font-size: 0.9em; font-weight: 500; color: var(--text-secondary); }
+.reaction.mine { background-color: var(--info-color); border-color: var(--info-color); color: var(--text-primary); }
+.reaction.mine .reactionCount { color: var(--text-primary); }
+
+/* --- GÜNCELLENEN MEDYA STİLLERİ --- */
+.mediaImage, .mediaVideo, .gifImage {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.mediaAudio {
+    width: 100%;
+    min-width: 240px; /* Genişliğin çok küçülmesini engelle */
+    max-width: 280px;
+}
+
+.fileLink {
+    display: block;
+    padding: 10px;
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 6px;
+    color: var(--info-color);
+    text-decoration: underline;
+}
+
+.benimMesajim .fileLink {
+    color: #0d47a1;
+}

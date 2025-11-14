@@ -1,0 +1,31 @@
+/* src/components/FriendItem.module.css */
+.friendItem { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    padding: 10px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    transition: background-color 0.2s;
+    position: relative;
+    user-select: none; /* Basılı tutma için metin seçimini engeller */
+}
+.friendItem:hover, .friendItem.active { 
+    background-color: var(--ui-bg-light); 
+}
+.friendItem img { 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+}
+.friendInfo { 
+    flex: 1; 
+    overflow: hidden; 
+}
+.friendInfo span { 
+    display: block; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}

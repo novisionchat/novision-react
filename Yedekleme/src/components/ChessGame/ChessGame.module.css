@@ -1,0 +1,282 @@
+/* src/components/ChessGame/ChessGame.module.css (TAM VE GÜNCELLENMİŞ HALİ) */
+
+.pipContainer {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--panel-bg, #0d0d0d);
+    border: 1px solid var(--border-color, #2a2a2a);
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    overflow: hidden;
+    color: var(--text-primary, #FFFFFF);
+}
+
+.pipWindow {
+    position: fixed;
+    z-index: 1000;
+    width: 340px;
+    height: auto;
+}
+
+.initialPosition {
+    bottom: 20px;
+    right: 20px;
+}
+
+.fullWindow {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.pipHeader {
+    background-color: var(--other-message-bg, #2A2A2A);
+    padding: 8px 12px;
+    /* cursor: move; <-- KALDIRILDI. Artık useDraggable hook'u yönetecek */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.pipControls { display: flex; gap: 4px; }
+.pipControls button {
+    background: none; border: none; color: var(--text-secondary, #a0a0a0);
+    cursor: pointer; padding: 4px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+}
+.pipControls button:hover {
+    background-color: var(--ui-bg-light, #1a1a1a);
+    color: var(--text-primary, #FFFFFF);
+}
+
+.pipContent { 
+    padding: 15px; 
+    flex-grow: 1; 
+    display: flex; 
+    flex-direction: column;
+    /* cursor: default; <-- KALDIRILDI. İçerik alanı artık sürüklenebilir olacak */
+}
+
+.fullWindow .pipContent {
+    flex: 1;
+    min-height: 0;
+    padding: 10px;
+    justify-content: center;
+    align-items: center;
+}
+
+.lobby {
+    display: flex; 
+    flex-direction: column; 
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px; 
+    height: 100%;
+    min-height: 380px;
+    text-align: center;
+}
+.lobby h4 { 
+    margin: 0; 
+    font-size: 1.2em;
+    color: var(--text-primary);
+}
+.lobby p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+.lobby .opponentInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+.lobby .opponentInfo img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+}
+.lobby .opponentInfo span {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.lobby button {
+    width: 100%; 
+    padding: 12px; 
+    background-color: var(--accent-color, #FFFFFF);
+    color: var(--text-dark, #000000); 
+    border: none; 
+    border-radius: 6px;
+    font-weight: bold; 
+    cursor: pointer;
+    margin-top: auto;
+}
+.lobby button:disabled {
+    background-color: var(--other-message-bg);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+.groupLobbyList {
+    width: 100%;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 5px;
+    margin: 10px 0;
+    background-color: var(--other-message-bg);
+    flex-grow: 1;
+}
+.groupLobbyItem {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.groupLobbyItem:hover {
+    background-color: var(--ui-bg-light);
+}
+.groupLobbyItem input {
+    margin-right: 10px;
+}
+.groupLobbyItem img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.gameContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+}
+
+.chessboard {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    border: 1px solid var(--chess-dark, #313131);
+    cursor: default; /* Sürüklenemez olduğunu belirtmek için imleç normal */
+}
+
+.fullWindow .chessboard {
+    max-width: min(calc(100vh - 180px), 95vw);
+    max-height: min(calc(100vh - 180px), 95vw);
+}
+
+.square {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.square span {
+    line-height: 1;
+    user-select: none;
+    font-size: 28px;
+}
+
+.fullWindow .square span {
+    font-size: min(8vh, 9.5vw);
+}
+
+.white { background-color: var(--chess-light, #B3B3B3); }
+.black { background-color: var(--chess-dark, #313131); }
+.selected { background-color: rgba(255, 255, 0, 0.5) !important; }
+.inCheck { background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0.7) 0%, transparent 70%); }
+
+.moveIndicator {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 35%; height: 35%;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 50%; pointer-events: none;
+}
+
+.capturedPieces { 
+    min-height: 30px; 
+    width: 100%;
+    font-size: 20px; 
+    text-align: left; 
+    color: var(--text-secondary, #a0a0a0);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+.fullWindow .capturedPieces {
+    max-width: min(calc(100vh - 180px), 95vw);
+    font-size: min(3vh, 4vw);
+    min-height: min(4vh, 5vw);
+}
+
+.statusBar { 
+    text-align: center; 
+    font-size: 0.9em; 
+    color: var(--text-secondary, #a0a0a0);
+    width: 100%;
+    margin-top: 10px;
+}
+.statusBar .actions { 
+    display: flex; 
+    justify-content: center; 
+    gap: 10px; 
+    margin-top: 10px;
+    cursor: default;
+}
+.statusBar .actions button {
+    background-color: #3a3a3a; border: 1px solid #555;
+    color: var(--text-primary, #FFFFFF); padding: 6px 12px;
+    border-radius: 4px; cursor: pointer;
+}
+.statusBar .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.dialogOverlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    cursor: default;
+}
+
+.dialogContent {
+    background-color: var(--panel-bg, #0d0d0d);
+    border: 1px solid var(--border-color, #2a2a2a);
+    padding: 20px; border-radius: 8px; text-align: center;
+}
+.dialogContent p { margin: 0 0 15px; }
+.dialogContent div { display: flex; gap: 10px; justify-content: center; }
+.dialogContent button {
+    background: var(--other-message-bg, #2A2A2A); border: none;
+    cursor: pointer; padding: 8px 16px; border-radius: 4px;
+    color: var(--text-primary);
+}
+.dialogContent button.danger {
+    background-color: var(--danger-color, #e53935);
+}
+
+.promotionButton span {
+    font-size: 32px;
+}
+
+.offer {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.offer p { margin: 0; font-weight: bold; }
+.offer button { padding: 4px 10px; font-size: 0.9em; cursor: pointer; }
