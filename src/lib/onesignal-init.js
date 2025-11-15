@@ -1,8 +1,8 @@
-// --- DOSYA: src/lib/onesignal-init.js (KÜTÜPHANESİZ, EN TEMİZ VE NİHAİ SÜRÜM) ---
+// --- DOSYA: src/lib/onesignal-init.js (NİHAİ, DOĞRU KUYRUK MANTIĞIYLA) ---
 
 import { getDatabase, ref, set, remove } from "firebase/database";
 
-// Veritabanı fonksiyonları aynı kalıyor.
+// Veritabanı fonksiyonları doğru, olduğu gibi kalıyor.
 const savePlayerIdToDatabase = (userId, playerId) => {
   if (!userId || !playerId) return;
   const db = getDatabase();
@@ -21,52 +21,53 @@ const removePlayerIdFromDatabase = (userId, playerId) => {
       .catch((error) => console.error('Eski Player ID silinirken hata oluştu:', error));
 };
 
-// --- ANA FONKSİYONUN EN BASİT VE EN GÜVENİLİR HALİ ---
+// --- ANA FONKSİYONUN EN SAĞLAM VE EN BASİT HALİ ---
 export const initializeOneSignal = (userId) => {
   if (!userId) return;
 
-  // Global `window.OneSignal` nesnesinin var olmasını sağlıyoruz.
   window.OneSignal = window.OneSignal || [];
-  
-  // `push` metodu, SDK'nın tam olarak yüklenmesini bekler ve sonra içindeki fonksiyonu çalıştırır.
-  // Bu, tüm zamanlama sorunlarını ortadan kaldırır.
-  window.OneSignal.push(function() {
-    window.OneSignal.init({
+  const OneSignal = window.OneSignal;
+
+  // KOMUT 1: SDK'yı başlat.
+  OneSignal.push(function() {
+    OneSignal.init({
       appId: import.meta.env.VITE_ONESIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true,
     });
+    console.log("OneSignal init komutu kuyruğa eklendi.");
+  });
 
-    console.log("OneSignal SDK başarıyla başlatıldı.");
+  // KOMUT 2: SDK başlatıldıktan sonra çalışacak olan olay dinleyicilerini ekle.
+  // Bu komut, init bittikten sonra çalışacağı için zamanlama hatası asla olmaz.
+  OneSignal.push(async function() {
+    console.log("Olay dinleyicileri kuyruğa eklendi.");
 
-    // SDK tamamen hazır olduğunda, işlemleri yapmaya başlıyoruz.
-    window.OneSignal.on('subscriptionChange', async function(isSubscribed) {
-      if (isSubscribed) {
-        const playerId = await window.OneSignal.getUserId();
+    // Mevcut durumu kontrol et
+    const isSubscribed = await OneSignal.isPushNotificationsEnabled();
+    if (isSubscribed) {
+        const playerId = await OneSignal.getUserId();
+         if (playerId) {
+            console.log("Kullanıcı zaten abone. Player ID:", playerId);
+            savePlayerIdToDatabase(userId, playerId);
+         }
+    }
+
+    // Abonelik durumu gelecekte değişirse dinle
+    OneSignal.on('subscriptionChange', async function(isSubscribedNow) {
+      if (isSubscribedNow) {
+        const playerId = await OneSignal.getUserId();
         if (playerId) {
-            console.log("Kullanıcı abone oldu. Player ID:", playerId);
+            console.log("Kullanıcı yeni abone oldu. Player ID:", playerId);
             savePlayerIdToDatabase(userId, playerId);
         }
       } else {
-          const playerId = await window.OneSignal.getUserId();
+          const playerId = await OneSignal.getUserId();
            if(playerId) {
                console.log("Kullanıcı abonelikten çıktı.");
                removePlayerIdFromDatabase(userId, playerId);
            }
       }
     });
-
-    // Sayfa yüklendiğinde mevcut durumu kontrol et
-    async function checkSubscription() {
-        const isSubscribed = await window.OneSignal.isPushNotificationsEnabled();
-        if (isSubscribed) {
-            const playerId = await window.OneSignal.getUserId();
-             if (playerId) {
-                console.log("Kullanıcı zaten aboneymiş. Player ID:", playerId);
-                savePlayerIdToDatabase(userId, playerId);
-             }
-        }
-    }
-    checkSubscription();
   });
 };
 
