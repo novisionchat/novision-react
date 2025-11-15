@@ -1,20 +1,46 @@
 const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
+const fs = require('fs'); // Dosya sistemini kontrol etmek için eklendi
 
-// --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu (Secret File Yöntemi) ---
+// --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu (Hata Ayıklama Logları ile) ---
 try {
+    console.log("Firebase Admin SDK başlatma bloğuna girildi.");
+    // Sadece henüz bir uygulama başlatılmadıysa devam et
     if (admin.apps.length === 0) {
         const serviceAccountPath = '/etc/secrets/service-account.json';
+        console.log(`Servis hesabı dosyası şu yoldan okunmaya çalışılacak: ${serviceAccountPath}`);
 
+        // Dosyanın gerçekten o yolda var olup olmadığını kontrol et
+        if (fs.existsSync(serviceAccountPath)) {
+            console.log("Başarılı: Servis hesabı dosyası belirtilen yolda bulundu.");
+            
+            // Dosyanın içeriğini okuyup boş olup olmadığını kontrol edelim (opsiyonel ama faydalı)
+            const fileContent = fs.readFileSync(serviceAccountPath, 'utf8');
+            if (fileContent.trim() === '') {
+                 console.error("KRİTİK HATA: Servis hesabı dosyası bulundu ancak içi boş!");
+            } else {
+                console.log("Dosya içeriği dolu görünüyor, SDK başlatılıyor...");
+            }
+
+        } else {
+            // Eğer dosya bulunamazsa, en kritik hata budur.
+            console.error(`KRİTİK HATA: Servis hesabı dosyası belirtilen yolda BULUNAMADI! Render.com -> Environment -> Secret Files ayarlarınızı kontrol edin.`);
+        }
+
+        // Yukarıdaki kontrollere rağmen initializeApp'i deniyoruz ki asıl hatayı görelim
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccountPath), 
             databaseURL: process.env.DATABASE_URL
         });
         console.log("Firebase Admin SDK başarıyla ve Secret File ile başlatıldı.");
+    } else {
+        console.log("Firebase Admin SDK zaten başlatılmış, tekrar başlatılmıyor.");
     }
 } catch (error) {
-    console.error("Firebase Admin SDK (Secret File) başlatılırken hata oluştu:", error);
+    // initializeApp aşamasında bir hata olursa burada yakalanacak.
+    // Örneğin, JSON formatı bozuksa veya izinler yetersizse.
+    console.error("Firebase Admin SDK (Secret File) başlatılırken KRİTİK BİR HATA oluştu:", error);
 }
 // --- BİTİŞ: Firebase Admin SDK Kurulumu ---
 
@@ -25,6 +51,12 @@ router.post('/trigger', async (req, res) => {
         
         if (!chatId || !chatType || !sender || !message) {
             return res.status(400).json({ error: 'Eksik parametreler.' });
+        }
+        
+        // admin.apps.length'i kontrol ederek SDK'nın başlatılıp başlatılamadığını anla
+        if (admin.apps.length === 0) {
+            console.error("Bildirim gönderilemiyor çünkü Firebase Admin SDK başlatılamadı. Lütfen yukarıdaki logları kontrol edin.");
+            return res.status(500).json({ error: 'Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı.' });
         }
         
         const db = admin.database();
