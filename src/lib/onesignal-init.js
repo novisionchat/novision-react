@@ -1,8 +1,8 @@
-// --- DOSYA: src/lib/onesignal-init.js (NİHAİ, DOĞRU KUYRUK MANTIĞIYLA) ---
+// --- DOSYA: src/lib/onesignal-init.js (NİHAİ, EN BASİT VE KESİN ÇÖZÜM) ---
 
-import { getDatabase, ref, set, remove } from "firebase/database";
+import { getDatabase, ref, set } from "firebase/database";
 
-// Veritabanı fonksiyonları doğru, olduğu gibi kalıyor.
+// Veritabanı fonksiyonumuz doğru, olduğu gibi kalıyor.
 const savePlayerIdToDatabase = (userId, playerId) => {
   if (!userId || !playerId) return;
   const db = getDatabase();
@@ -12,65 +12,50 @@ const savePlayerIdToDatabase = (userId, playerId) => {
     .catch((error) => console.error('OneSignal Player ID kaydedilirken hata oluştu:', error));
 };
 
-const removePlayerIdFromDatabase = (userId, playerId) => {
-    if (!userId || !playerId) return;
-    const db = getDatabase();
-    const playerIdRef = ref(db, `users/${userId}/playerIds/${playerId}`);
-    remove(playerIdRef)
-      .then(() => console.log('Eski OneSignal Player ID silindi:', playerId))
-      .catch((error) => console.error('Eski Player ID silinirken hata oluştu:', error));
-};
-
 // --- ANA FONKSİYONUN EN SAĞLAM VE EN BASİT HALİ ---
 export const initializeOneSignal = (userId) => {
   if (!userId) return;
 
+  // Global OneSignal nesnesini ve kuyruğunu hazırlıyoruz.
   window.OneSignal = window.OneSignal || [];
   const OneSignal = window.OneSignal;
 
-  // KOMUT 1: SDK'yı başlat.
+  // Tek bir `push` komutu ile her şeyi hallediyoruz.
   OneSignal.push(function() {
+    // Adım 1: SDK'yı başlat.
     OneSignal.init({
       appId: import.meta.env.VITE_ONESIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true,
     });
-    console.log("OneSignal init komutu kuyruğa eklendi.");
-  });
+    console.log("OneSignal init komutu gönderildi.");
 
-  // KOMUT 2: SDK başlatıldıktan sonra çalışacak olan olay dinleyicilerini ekle.
-  // Bu komut, init bittikten sonra çalışacağı için zamanlama hatası asla olmaz.
-  OneSignal.push(async function() {
-    console.log("Olay dinleyicileri kuyruğa eklendi.");
+    // Adım 2: SDK'nın "Ben tamamen hazırım" demesini bekle.
+    // Bu, tüm zamanlama sorunlarını çözen sihirli olaydır.
+    OneSignal.on('sdkBasicallyReady', async function() {
+      console.log('OneSignal SDK tamamen hazır!');
 
-    // Mevcut durumu kontrol et
-    const isSubscribed = await OneSignal.isPushNotificationsEnabled();
-    if (isSubscribed) {
-        const playerId = await OneSignal.getUserId();
-         if (playerId) {
-            console.log("Kullanıcı zaten abone. Player ID:", playerId);
-            savePlayerIdToDatabase(userId, playerId);
-         }
-    }
+      // SDK hazır olduğuna göre, artık Player ID'yi güvenle alabiliriz.
+      const playerId = await OneSignal.getUserId();
+      if (playerId) {
+        console.log("Mevcut Player ID bulundu:", playerId);
+        savePlayerIdToDatabase(userId, playerId);
+      }
+    });
 
-    // Abonelik durumu gelecekte değişirse dinle
-    OneSignal.on('subscriptionChange', async function(isSubscribedNow) {
-      if (isSubscribedNow) {
+    // Adım 3: Kullanıcı gelecekte bildirim iznini değiştirirse diye dinleyici ekle.
+    OneSignal.on('subscriptionChange', async function(isSubscribed) {
+      if (isSubscribed) {
+        // Kullanıcı yeni abone olduysa, Player ID'yi al ve kaydet.
         const playerId = await OneSignal.getUserId();
         if (playerId) {
-            console.log("Kullanıcı yeni abone oldu. Player ID:", playerId);
-            savePlayerIdToDatabase(userId, playerId);
+          console.log("Kullanıcı yeni abone oldu. Player ID:", playerId);
+          savePlayerIdToDatabase(userId, playerId);
         }
-      } else {
-          const playerId = await OneSignal.getUserId();
-           if(playerId) {
-               console.log("Kullanıcı abonelikten çıktı.");
-               removePlayerIdFromDatabase(userId, playerId);
-           }
       }
     });
   });
 };
 
 export const cleanupOneSignal = () => {
-    // Bu fonksiyon şimdilik boş kalabilir.
+  // Bu fonksiyon şimdilik boş kalabilir.
 };
