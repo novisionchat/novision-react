@@ -28,6 +28,7 @@ try {
 }
 // --- BİTİŞ: Firebase Admin SDK Kurulumu ---
 
+
 router.post('/trigger', async (req, res) => {
     try {
         const { chatId, chatType, sender, message } = req.body;
@@ -36,38 +37,50 @@ router.post('/trigger', async (req, res) => {
             return res.status(400).json({ error: 'Eksik parametreler.' });
         }
 
-        // Adım 1 & 2: Player ID'leri toplama (Bu kısımlar doğru, değiştirilmedi)
         const db = admin.database();
         let recipientIds = [];
+
+        // Adım 1: Alıcıları Belirle
         if (chatType === 'dm') {
             const otherUserId = chatId.replace(sender.uid, '').replace('_', '');
             recipientIds.push(otherUserId);
         } else if (chatType === 'group') {
-            const membersSnapshot = await db.ref(`groups/${chatId}/members`).once('value');
+            // DÜZELTİLDİ: Veritabanı yapınıza uygun olarak 'meta' katmanı eklendi.
+            const membersSnapshot = await db.ref(`groups/${chatId}/meta/members`).once('value');
             if (membersSnapshot.exists()) {
                 recipientIds = Object.keys(membersSnapshot.val()).filter(id => id !== sender.uid);
             }
         }
-        if (recipientIds.length === 0) return res.json({ success: true, message: 'Alıcı bulunamadı.' });
+
+        if (recipientIds.length === 0) {
+            return res.json({ success: true, message: 'Bildirim gönderilecek alıcı bulunamadı.' });
+        }
 
         let allPlayerIds = [];
+
+        // Adım 2: Her alıcı için çevrimiçi durumunu kontrol et ve Player ID'leri topla
         for (const recipientId of recipientIds) {
-            const playerIdsSnapshot = await db.ref(`users/${recipientId}/playerIds`).once('value');
-            if (playerIdsSnapshot.exists()) {
-                allPlayerIds.push(...Object.keys(playerIdsSnapshot.val()));
+            // YENİ: Kullanıcının çevrimiçi durumunu kontrol et
+            const presenceSnapshot = await db.ref(`users/${recipientId}/presence/status`).once('value');
+            
+            // Sadece kullanıcı 'online' DEĞİLSE bildirim gönderilecekler listesine ekle
+            if (presenceSnapshot.val() !== 'online') {
+                const playerIdsSnapshot = await db.ref(`users/${recipientId}/playerIds`).once('value');
+                if (playerIdsSnapshot.exists()) {
+                    allPlayerIds.push(...Object.keys(playerIdsSnapshot.val()));
+                }
+            } else {
+                 // Kullanıcı zaten çevrimiçi olduğu için bu alıcıyı atlıyoruz.
+                console.log(`Kullanıcı ${recipientId} çevrimiçi, bu yüzden bildirim gönderilmeyecek.`);
             }
         }
-        if (allPlayerIds.length === 0) return res.json({ success: true, message: 'Player ID bulunamadı.' });
-        
 
-        // --- DEĞİŞEN BÖLÜM BURASI ---
-        // Adım 3: OneSignal bildirimini doğru URL ile hazırla
+        if (allPlayerIds.length === 0) {
+            return res.json({ success: true, message: 'Bildirim gönderilecek çevrimdışı kullanıcı veya cihaz bulunamadı.' });
+        }
         
-        // Ön yüzden gelen göreceli yolu al (örn: "/chats/123" veya tanımsızsa "/")
+        // Adım 3: OneSignal bildirimini doğru URL ve etiket ile hazırla
         const relativeUrl = message.click_action || '/';
-
-        // Göreceli yolu, ortam değişkenindeki ana URL ile birleştirerek tam URL oluştur.
-        // new URL() kullanımı, "https://site.com/" + "/path" gibi durumlarda çift // oluşmasını engeller.
         const fullWebUrl = new URL(relativeUrl, APP_BASE_URL).href;
 
         const notification = {
@@ -75,12 +88,14 @@ router.post('/trigger', async (req, res) => {
             include_player_ids: allPlayerIds,
             headings: { "en": message.title },
             contents: { "en": message.body },
-            web_url: fullWebUrl // DÜZELTİLMİŞ VE TAM URL
+            web_url: fullWebUrl,
+            // YENİ: Aynı sohbetten gelen bildirimlerin birbirini güncellemesi için etiket ekle
+            web_push_data: {
+                tag: chatId
+            }
         };
-        // --- GÜNCELLEME SONU ---
 
-
-        // Adım 4: OneSignal API'sine istek gönder (Bu kısım doğru, değiştirilmedi)
+        // Adım 4: OneSignal API'sine istek gönder
         const response = await fetch("https://onesignal.com/api/v1/notifications", {
             method: "POST",
             headers: {
