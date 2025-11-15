@@ -1,49 +1,35 @@
 const express = require('express');
 const router = express.Router();
-const admin = require('firebase-admin');
-const fs = require('fs'); // Dosya sistemini kontrol etmek için eklendi
+const fetch = require('node-fetch'); // package.json dosyanızda zaten vardı
+const admin = require('firebase-admin'); // Veritabanından Player ID okumak için hâlâ gerekli
 
-// --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu (Hata Ayıklama Logları ile) ---
+// --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu (Veritabanı için) ---
+// Not: Bu kısım sadece veritabanından kullanıcı bilgilerini okumak için
+// kullanılıyor, artık bildirim göndermek için DEĞİL.
 try {
-    console.log("Firebase Admin SDK başlatma bloğuna girildi.");
-    // Sadece henüz bir uygulama başlatılmadıysa devam et
     if (admin.apps.length === 0) {
+        // Render'a deploy ederken bu satırları tekrar eski haline getirmeyi unutmayın!
+        // Lokal Test için:
+        const serviceAccount = require('../service-account.json');
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            databaseURL: process.env.DATABASE_URL
+        });
+        
+        // Render için (eski kodunuz):
+        /*
         const serviceAccountPath = '/etc/secrets/service-account.json';
-        console.log(`Servis hesabı dosyası şu yoldan okunmaya çalışılacak: ${serviceAccountPath}`);
-
-        // Dosyanın gerçekten o yolda var olup olmadığını kontrol et
-        if (fs.existsSync(serviceAccountPath)) {
-            console.log("Başarılı: Servis hesabı dosyası belirtilen yolda bulundu.");
-            
-            // Dosyanın içeriğini okuyup boş olup olmadığını kontrol edelim (opsiyonel ama faydalı)
-            const fileContent = fs.readFileSync(serviceAccountPath, 'utf8');
-            if (fileContent.trim() === '') {
-                 console.error("KRİTİK HATA: Servis hesabı dosyası bulundu ancak içi boş!");
-            } else {
-                console.log("Dosya içeriği dolu görünüyor, SDK başlatılıyor...");
-            }
-
-        } else {
-            // Eğer dosya bulunamazsa, en kritik hata budur.
-            console.error(`KRİTİK HATA: Servis hesabı dosyası belirtilen yolda BULUNAMADI! Render.com -> Environment -> Secret Files ayarlarınızı kontrol edin.`);
-        }
-
-        // Yukarıdaki kontrollere rağmen initializeApp'i deniyoruz ki asıl hatayı görelim
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccountPath), 
             databaseURL: process.env.DATABASE_URL
         });
-        console.log("Firebase Admin SDK başarıyla ve Secret File ile başlatıldı.");
-    } else {
-        console.log("Firebase Admin SDK zaten başlatılmış, tekrar başlatılmıyor.");
+        */
+        console.log("Firebase Admin SDK (Veritabanı Erişimi İçin) başarıyla başlatıldı.");
     }
 } catch (error) {
-    // initializeApp aşamasında bir hata olursa burada yakalanacak.
-    // Örneğin, JSON formatı bozuksa veya izinler yetersizse.
-    console.error("Firebase Admin SDK (Secret File) başlatılırken KRİTİK BİR HATA oluştu:", error);
+    console.error("Firebase Admin SDK (Veritabanı Erişimi İçin) başlatılırken hata oluştu:", error);
 }
 // --- BİTİŞ: Firebase Admin SDK Kurulumu ---
-
 
 router.post('/trigger', async (req, res) => {
     try {
@@ -52,17 +38,11 @@ router.post('/trigger', async (req, res) => {
         if (!chatId || !chatType || !sender || !message) {
             return res.status(400).json({ error: 'Eksik parametreler.' });
         }
-        
-        // admin.apps.length'i kontrol ederek SDK'nın başlatılıp başlatılamadığını anla
-        if (admin.apps.length === 0) {
-            console.error("Bildirim gönderilemiyor çünkü Firebase Admin SDK başlatılamadı. Lütfen yukarıdaki logları kontrol edin.");
-            return res.status(500).json({ error: 'Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı.' });
-        }
-        
+
         const db = admin.database();
         let recipientIds = [];
 
-        // Adım 1: Alıcıları Belirle
+        // Adım 1: Alıcıları Belirle (Bu kısım aynı kalıyor)
         if (chatType === 'dm') {
             const otherUserId = chatId.replace(sender.uid, '').replace('_', '');
             recipientIds.push(otherUserId);
@@ -77,75 +57,58 @@ router.post('/trigger', async (req, res) => {
             return res.json({ success: true, message: 'Bildirim gönderilecek kimse bulunamadı.' });
         }
 
-        const notificationPayload = {
-            notification: {
-                title: message.title,
-                body: message.body,
-                icon: message.icon || '/assets/icon.png'
-            },
-            webpush: {
-                fcm_options: {
-                    link: message.click_action || '/'
-                }
-            }
-        };
+        let allPlayerIds = [];
 
-        let sentCount = 0;
-
-        // Adım 2: Her alıcı için kontrolleri yap
+        // Adım 2: Her alıcı için Player ID'lerini topla
         for (const recipientId of recipientIds) {
-            const presenceRef = db.ref(`users/${recipientId}/presence`);
-            const presenceSnap = await presenceRef.once('value');
-            if (presenceSnap.exists() && presenceSnap.val().status === 'online') {
-                console.log(`Kullanıcı (${recipientId}) çevrimiçi, bildirim gönderilmiyor.`);
-                continue;
-            }
-
-            const settingsPath = chatType === 'dm'
-                ? `users/${recipientId}/conversations/${chatId}/notificationsEnabled`
-                : `users/${recipientId}/groups/${chatId}/notificationsEnabled`;
-            
-            const settingsSnap = await db.ref(settingsPath).once('value');
-            if (settingsSnap.exists() && settingsSnap.val() === false) {
-                console.log(`Kullanıcı (${recipientId}) bu sohbet için bildirimleri kapattı.`);
-                continue;
-            }
-
-            // Adım 3: Kullanıcının token'larını al ve bildirimi gönder
-            const tokensSnapshot = await db.ref(`users/${recipientId}/fcmTokens`).once('value');
-            if (tokensSnapshot.exists()) {
-                const tokens = Object.keys(tokensSnapshot.val());
-                if (tokens.length > 0) {
-                    
-                    const response = await admin.messaging().sendMulticast({
-                        tokens: tokens,
-                        notification: notificationPayload.notification,
-                        webpush: notificationPayload.webpush,
-                    });
-
-                    sentCount += response.successCount;
-                    
-                    if (response.failureCount > 0) {
-                        const failedTokens = [];
-                        response.responses.forEach((resp, idx) => {
-                            if (!resp.success) {
-                                failedTokens.push(tokens[idx]);
-                            }
-                        });
-                        console.log('Hatalı token listesi:', failedTokens);
-                    }
-                }
+            // ÖNEMLİ: Veritabanınızda artık 'fcmTokens' yerine 'playerIds' tutmalısınız!
+            const playerIdsSnapshot = await db.ref(`users/${recipientId}/playerIds`).once('value');
+            if (playerIdsSnapshot.exists()) {
+                const playerIds = Object.keys(playerIdsSnapshot.val());
+                allPlayerIds.push(...playerIds);
             }
         }
+
+        if (allPlayerIds.length === 0) {
+            return res.json({ success: true, message: 'Bildirim gönderilecek aktif cihaz (Player ID) bulunamadı.' });
+        }
         
+        // Adım 3: OneSignal API'sine gönderilecek bildirimi hazırla
+        const notification = {
+            app_id: process.env.ONESIGNAL_APP_ID,
+            include_player_ids: allPlayerIds,
+            headings: { "en": message.title },
+            contents: { "en": message.body },
+            web_url: message.click_action || '/' // Bildirime tıklandığında açılacak URL
+        };
+
+        // Adım 4: OneSignal API'sine POST isteği gönder
+        const response = await fetch("https://onesignal.com/api/v1/notifications", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": `Basic ${process.env.ONESIGNAL_API_KEY}`
+            },
+            body: JSON.stringify(notification)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('OneSignal API Hatası:', errorData);
+            throw new Error('OneSignal API\'den hata yanıtı alındı.');
+        }
+
+        const responseData = await response.json();
+        console.log("OneSignal Yanıtı:", responseData);
+
         res.json({ 
             success: true, 
-            sent: sentCount,
-            checked: recipientIds.length
+            message: "Bildirim başarıyla OneSignal'a iletildi.",
+            oneSignalResponse: responseData
         });
 
     } catch (error) {
-        console.error('Bildirim tetikleme fonksiyonunda detaylı hata:', error);
+        console.error('OneSignal bildirim tetikleme hatası:', error);
         res.status(500).json({ error: 'Bildirim gönderilemedi', details: error.message });
     }
 });
