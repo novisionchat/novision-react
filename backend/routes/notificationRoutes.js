@@ -38,7 +38,7 @@ router.post('/trigger', async (req, res) => {
         const db = admin.database();
         let recipientIds = [];
 
-        // Adım 1: Alıcıları Belirle (Bu kısım doğru)
+        // Adım 1: Alıcıları Belirle
         if (chatType === 'dm') {
             const otherUserId = chatId.replace(sender.uid, '').replace('_', '');
             recipientIds.push(otherUserId);
@@ -55,10 +55,10 @@ router.post('/trigger', async (req, res) => {
 
         let allPlayerIds = [];
 
-        // Adım 2: Her alıcı için çevrimiçi durumunu kontrol et ve SADECE çevrimdışı olanların Player ID'lerini topla
+        // Adım 2: Her alıcı için çevrimiçi durumunu kontrol et ve Player ID'leri topla
         for (const recipientId of recipientIds) {
-            // YENİ: Kullanıcının çevrimiçi durumunu kontrol et
-            const presenceSnapshot = await db.ref(`users/${recipientId}/presence/status`).once('value');
+            // DÜZELTME: 'status' yerine doğru alan adı olan 'state' kullanıldı.
+            const presenceSnapshot = await db.ref(`users/${recipientId}/presence/state`).once('value');
             
             // Sadece kullanıcı 'online' DEĞİLSE bildirim gönderilecekler listesine ekle
             if (presenceSnapshot.val() !== 'online') {
@@ -67,7 +67,6 @@ router.post('/trigger', async (req, res) => {
                     allPlayerIds.push(...Object.keys(playerIdsSnapshot.val()));
                 }
             } else {
-                 // Kullanıcı zaten çevrimiçi olduğu için bu alıcıyı atlıyoruz.
                 console.log(`Kullanıcı ${recipientId} çevrimiçi, bu yüzden bildirim gönderilmeyecek.`);
             }
         }
@@ -76,7 +75,7 @@ router.post('/trigger', async (req, res) => {
             return res.json({ success: true, message: 'Bildirim gönderilecek çevrimdışı kullanıcı veya cihaz bulunamadı.' });
         }
         
-        // Adım 3: OneSignal bildirimini hazırla
+        // Adım 3: OneSignal bildirimini doğru URL ve etiket ile hazırla
         const relativeUrl = message.click_action || '/';
         const fullWebUrl = new URL(relativeUrl, APP_BASE_URL).href;
 
