@@ -1,39 +1,24 @@
-// --- DOSYA: src/lib/onesignal-init.js (HATA AYIKLAMA SÜRÜMÜ) ---
+// --- DOSYA: src/lib/onesignal-init.js (DAHA DETAYLI HATA AYIKLAMA SÜRÜMÜ) ---
+
+// savePlayerIdToDatabase fonksiyonu aynı kalabilir, bir önceki mesajdaki
+// detaylı versiyonu kullanıyorsanız o en iyisidir.
 
 import { getDatabase, ref, set } from "firebase/database";
 
-// Fonksiyonu daha detaylı loglama yapacak şekilde güncelliyoruz
 const savePlayerIdToDatabase = (userId, playerId) => {
-  console.log("--- savePlayerIdToDatabase fonksiyonu tetiklendi ---");
-
   if (!userId || !playerId) {
     console.error("HATA: userId veya playerId EKSİK! Yazma işlemi yapılamadı.", { userId, playerId });
     return;
   }
-
-  console.log(`Firebase'e yazma hazırlığı yapılıyor...`);
-  console.log(` -> Hedef Yol: users/${userId}/playerIds/${playerId}`);
-  console.log(` -> Gönderilen Değer: true`);
-
   const db = getDatabase();
   const playerIdRef = ref(db, `users/${userId}/playerIds/${playerId}`);
-
   set(playerIdRef, true)
-    .then(() => {
-      // Bu mesajı görüyorsanız, işlem BAŞARILI olmuştur.
-      console.log(`✅ BAŞARIYLA YAZILDI! Player ID (${playerId}) veritabanına eklendi.`);
-    })
-    .catch((error) => {
-      // Bu mesajı görüyorsanız, Firebase yazma iznini REDDETMİŞTİR veya başka bir hata vardır.
-      console.error("❌ HATA YAKALANDI! Firebase'e yazma işlemi BAŞARISIZ OLDU.");
-      console.error(" -> Alınan Hata Kodu:", error.code);
-      console.error(" -> Hata Mesajı:", error.message);
-      console.error(" -> Tüm Hata Objesi:", error);
-    });
+    .then(() => console.log('✅ BAŞARIYLA YAZILDI! Player ID veritabanına eklendi:', playerId))
+    .catch((error) => console.error('❌ HATA YAKALANDI! Firebase\'e yazma işlemi BAŞARISIZ OLDU:', error));
 };
 
 
-// Bu fonksiyonda değişiklik yok, olduğu gibi kalıyor
+// --- ANA DEĞİŞİKLİK BU FONKSİYONDA ---
 export const initializeOneSignal = (userId) => {
   if (!userId) return;
 
@@ -41,24 +26,41 @@ export const initializeOneSignal = (userId) => {
   const OneSignal = window.OneSignal;
 
   OneSignal.push(async function() {
+    // Adım 1: .env dosyasının doğru okunduğundan emin olalım.
+    const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+    if (!appId) {
+        console.error("KRİTİK HATA: .env dosyasından VITE_ONESIGNAL_APP_ID okunamadı! Lütfen .env.local dosyanızı ve adlandırmayı kontrol edin.");
+        return;
+    }
+    console.log("Kullanılacak OneSignal App ID:", appId);
+
     await OneSignal.init({
-      appId: import.meta.env.VITE_ONESIGNAL_APP_ID,
+      appId: appId,
       allowLocalhostAsSecureOrigin: true,
     });
     
     console.log("OneSignal SDK başarıyla başlatıldı.");
 
+    // Adım 2: Dinleyiciyi daha detaylı loglama yapacak şekilde güncelliyoruz.
     OneSignal.User.PushSubscription.addEventListener('change', function(change) {
-        console.log("Abonelik durumu değişti:", change);
-        if (change.current.isSubscribed) {
-            const playerId = change.current.id;
-            if (playerId) {
-                console.log("Değişiklik yakalandı! Yeni Player ID:", playerId);
-                savePlayerIdToDatabase(userId, playerId);
-            }
+        console.log("--- ABONELİK DURUMU DEĞİŞİKLİĞİ ALGILANDI ---");
+        
+        // Gelen verinin içini detaylıca inceleyelim
+        console.log("Önceki Durum (previous.isSubscribed):", change.previous.isSubscribed);
+        console.log("Mevcut Durum (current.isSubscribed):", change.current.isSubscribed);
+        console.log("Mevcut Player ID (current.id):", change.current.id);
+
+        // Koşulumuzu kontrol edelim
+        if (change.current.isSubscribed && change.current.id) {
+            console.log("✅ Koşullar sağlandı. Player ID kaydediliyor...");
+            savePlayerIdToDatabase(userId, change.current.id);
+        } else {
+            console.warn("⚠️ Koşullar sağlanmadı. 'isSubscribed' true değil veya 'id' boş. Kaydetme yapılmayacak.");
         }
+        console.log("--- DEĞİŞİKLİK İŞLEME SONU ---");
     });
 
+    // Adım 3: Mevcut durumu kontrol etme (bu kısım aynı kalıyor)
     const isSubscribed = OneSignal.User.PushSubscription.isSubscribed;
     if (isSubscribed) {
         const playerId = OneSignal.User.PushSubscription.id;
