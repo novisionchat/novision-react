@@ -1,4 +1,4 @@
-// --- DOSYA: src/components/ChatArea.jsx ---
+// --- DOSYA: src/components/ChatArea.jsx (TAM VE DÜZELTİLMİŞ HALİ) ---
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '../context/ChatContext';
@@ -84,7 +84,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
     return () => { unsubMessages(); unsubTyping(); };
   }, [activeChat, activeChannelId, currentUser]);
 
-  // --- GÜNCELLENMİŞ useEffect BLOKU ---
+  // --- DÜZELTİLMİŞ useEffect BLOKU ---
   useEffect(() => {
     if (!activeChat || !currentUser) return;
 
@@ -119,7 +119,7 @@ function ChatArea({ onToggleSidebar, onChessButtonClick }) {
       unsubPresence();
       unsubFromNewMessages(); // YENİ: Anlık mesaj dinleyicisini kapat
     };
-  }, [activeChat, currentUser]); // activeChannelId'a gerek yoksa kaldırılabilir.
+  }, [activeChat, currentUser]);
   
   const handleToggleReaction = useCallback((messageId, emoji) => { 
     if (!activeChat || !currentUser) return;
