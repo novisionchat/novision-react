@@ -2,23 +2,38 @@ const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
 
-// YENİ VE DOĞRU YÖNTEM: Messaging servisini kendi paketinden import ediyoruz.
-const { getMessaging } = require('firebase-admin/messaging');
+// --- HATA AYIKLAMA BAŞLANGIÇ ---
+// Bu kod, Render sunucusunda 'node_modules' içine hangi sürümün kurulduğunu bize gösterecek.
+try {
+    const firebaseAdminVersion = require('firebase-admin/package.json').version;
+    console.log(`--- KONTROL: Yüklü firebase-admin sürümü: ${firebaseAdminVersion} ---`);
+} catch (e) {
+    console.log("--- KONTROL: firebase-admin sürümü kontrol edilemedi. Muhtemelen çok eski bir sürüm. ---");
+}
+// --- HATA AYIKLAMA BİTİŞ ---
+
+
+// YENİ VE DOĞRU YÖNTEM OLAN 'getMessaging' KULLANIMINI KALDIRIYORUZ.
+// SEBEP: Render ortamında eski bir sürümün çalışıyor olma ihtimali.
+// const { getMessaging } = require('firebase-admin/messaging');
+
 
 // --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu (Bu kısım aynı kalıyor) ---
 try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-        const serviceAccount_b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
-        const serviceAccountJson = Buffer.from(serviceAccount_b64, 'base64').toString('ascii');
-        const serviceAccount = JSON.parse(serviceAccountJson);
+    if (admin.apps.length === 0) { // Birden fazla kez initialize etmeyi önler
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+            const serviceAccount_b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+            const serviceAccountJson = Buffer.from(serviceAccount_b64, 'base64').toString('ascii');
+            const serviceAccount = JSON.parse(serviceAccountJson);
 
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            databaseURL: process.env.DATABASE_URL
-        });
-        console.log("Firebase Admin SDK başarıyla başlatıldı.");
-    } else {
-        console.error("FIREBASE_SERVICE_ACCOUNT_BASE64 ortam değişkeni bulunamadı!");
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                databaseURL: process.env.DATABASE_URL
+            });
+            console.log("Firebase Admin SDK başarıyla başlatıldı.");
+        } else {
+            console.error("FIREBASE_SERVICE_ACCOUNT_BASE64 ortam değişkeni bulunamadı!");
+        }
     }
 } catch (error) {
     console.error("Firebase Admin SDK başlatılırken hata oluştu:", error);
@@ -92,14 +107,14 @@ router.post('/trigger', async (req, res) => {
                 const tokens = Object.keys(tokensSnapshot.val());
                 if (tokens.length > 0) {
                     
-                    // --- BAŞLANGIÇ: FİNAL DÜZELTME ---
-                    // 'admin.messaging().sendMulticast' yerine doğrudan 'getMessaging().sendMulticast' kullanıyoruz.
-                    const response = await getMessaging().sendMulticast({
+                    // --- BAŞLANGIÇ: GÜVENLİ VE GERİYE UYUMLU KOD ---
+                    // 'getMessaging().sendMulticast' yerine, tüm sürümlerde çalışan 'admin.messaging().sendMulticast' kullanıyoruz.
+                    const response = await admin.messaging().sendMulticast({
                         tokens: tokens,
                         notification: notificationPayload.notification,
                         webpush: notificationPayload.webpush,
                     });
-                    // --- BİTİŞ: FİNAL DÜZELTME ---
+                    // --- BİTİŞ: GÜVENLİ VE GERİYE UYUMLU KOD ---
 
                     sentCount += response.successCount;
                     
@@ -123,8 +138,9 @@ router.post('/trigger', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Bildirim tetikleme hatası:', error);
-        res.status(500).json({ error: 'Bildirim gönderilemedi' });
+        // Hata durumunda daha detaylı loglama yapıyoruz
+        console.error('Bildirim tetikleme fonksiyonunda detaylı hata:', error);
+        res.status(500).json({ error: 'Bildirim gönderilemedi', details: error.message });
     }
 });
 
