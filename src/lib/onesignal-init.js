@@ -1,4 +1,4 @@
-// --- DOSYA: src/lib/onesignal-init.js (DOĞRU v16 SÖZDİZİMİ İLE NİHAİ SÜRÜM) ---
+// --- DOSYA: src/lib/onesignal-init.js (KESİN VE NİHAİ MANTIKSAL AKIŞ) ---
 
 import { getDatabase, ref, set } from "firebase/database";
 
@@ -16,46 +16,46 @@ const savePlayerIdToDatabase = (userId, playerId) => {
 export const initializeOneSignal = (userId) => {
   if (!userId) return;
 
-  // Global OneSignal kuyruğunu hazırlıyoruz.
   window.OneSignal = window.OneSignal || [];
   const OneSignal = window.OneSignal;
 
-  // Tek bir `push` komutu ile tüm işlemleri kuyruğa alıyoruz.
-  OneSignal.push(function() {
+  OneSignal.push(async function() {
     // Adım 1: SDK'yı başlat.
-    OneSignal.init({
+    await OneSignal.init({
       appId: import.meta.env.VITE_ONESIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true,
-    }).then(function() {
-        console.log("OneSignal SDK başarıyla başlatıldı ve hazır.");
-        
-        // Adım 2: SDK hazır olduğunda, mevcut durumu kontrol et.
-        const isSubscribed = OneSignal.User.PushSubscription.isSubscribed;
-        if (isSubscribed) {
-            const playerId = OneSignal.User.PushSubscription.id;
+    });
+    
+    console.log("OneSignal SDK başarıyla başlatıldı.");
+
+    // Adım 2: ÖNCE dinleyiciyi kur. Bu, hiçbir değişikliği kaçırmamamızı garanti eder.
+    OneSignal.User.PushSubscription.addEventListener('change', function(change) {
+        console.log("Abonelik durumu değişti:", change);
+        // Sadece yeni abonelik durumunda ID'yi alıp kaydediyoruz.
+        if (change.current.isSubscribed) {
+            const playerId = change.current.id;
             if (playerId) {
-                console.log("Kullanıcı zaten abone. Player ID:", playerId);
+                console.log("Değişiklik yakalandı! Yeni Player ID:", playerId);
                 savePlayerIdToDatabase(userId, playerId);
             }
-        } else {
-            // Kullanıcı abone değilse, bildirim izni isteme penceresini tetikle.
-            // Bu, kullanıcı daha önce "Engelle" demediyse çalışır.
-            OneSignal.Slidedown.promptPush();
         }
-
-        // Adım 3: Kullanıcı gelecekte abonelik durumunu değiştirirse dinle.
-        // YENİ VE DOĞRU YÖNTEM:
-        OneSignal.User.PushSubscription.addEventListener('change', function(change) {
-            console.log("Abonelik durumu değişti:", change);
-            if (change.current.isSubscribed) {
-                const playerId = change.current.id;
-                if (playerId) {
-                    console.log("Kullanıcı yeni abone oldu. Player ID:", playerId);
-                    savePlayerIdToDatabase(userId, playerId);
-                }
-            }
-        });
     });
+
+    // Adım 3: Dinleyici hazır olduğuna göre, ŞİMDİ mevcut durumu kontrol et.
+    const isSubscribed = OneSignal.User.PushSubscription.isSubscribed;
+    if (isSubscribed) {
+        // Kullanıcı zaten aboneymiş, ID'sini alıp kaydedelim.
+        const playerId = OneSignal.User.PushSubscription.id;
+        if (playerId) {
+            console.log("Kullanıcı zaten abone. Player ID:", playerId);
+            savePlayerIdToDatabase(userId, playerId);
+        }
+    } else {
+        // Kullanıcı abone değilse, izin penceresini göster.
+        // Kullanıcı "İzin Ver"e tıkladığında, yukarıdaki 'change' dinleyicisi bunu yakalayacak.
+        console.log("Kullanıcı abone değil, izin isteniyor...");
+        OneSignal.Slidedown.promptPush();
+    }
   });
 };
 
