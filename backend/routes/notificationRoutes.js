@@ -3,22 +3,15 @@ const router = express.Router();
 const admin = require('firebase-admin');
 
 // --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu (Secret File Yöntemi) ---
-// Bu blok, Base64 yerine Render'ın "Secret File" özelliğini kullanarak
-// kimlik doğrulama anahtarını güvenli bir şekilde okur.
 try {
-    // Uygulamanın birden fazla kez başlatılmasını önleyen kontrol
     if (admin.apps.length === 0) {
-        
-        // Render, "Secret File" olarak yüklenen dosyayı bu standart yolda oluşturur.
         const serviceAccountPath = '/etc/secrets/service-account.json';
 
         admin.initializeApp({
-            // Base64'ü çözmek yerine, doğrudan dosyanın yolunu veriyoruz.
             credential: admin.credential.cert(serviceAccountPath), 
             databaseURL: process.env.DATABASE_URL
         });
         console.log("Firebase Admin SDK başarıyla ve Secret File ile başlatıldı.");
-
     }
 } catch (error) {
     console.error("Firebase Admin SDK (Secret File) başlatılırken hata oluştu:", error);
@@ -86,4 +79,43 @@ router.post('/trigger', async (req, res) => {
                 continue;
             }
 
-            // Adım 3: Kullanıcının token'larını al ve bildirimi gönd
+            // Adım 3: Kullanıcının token'larını al ve bildirimi gönder
+            const tokensSnapshot = await db.ref(`users/${recipientId}/fcmTokens`).once('value');
+            if (tokensSnapshot.exists()) {
+                const tokens = Object.keys(tokensSnapshot.val());
+                if (tokens.length > 0) {
+                    
+                    const response = await admin.messaging().sendMulticast({
+                        tokens: tokens,
+                        notification: notificationPayload.notification,
+                        webpush: notificationPayload.webpush,
+                    });
+
+                    sentCount += response.successCount;
+                    
+                    if (response.failureCount > 0) {
+                        const failedTokens = [];
+                        response.responses.forEach((resp, idx) => {
+                            if (!resp.success) {
+                                failedTokens.push(tokens[idx]);
+                            }
+                        });
+                        console.log('Hatalı token listesi:', failedTokens);
+                    }
+                }
+            }
+        }
+        
+        res.json({ 
+            success: true, 
+            sent: sentCount,
+            checked: recipientIds.length
+        });
+
+    } catch (error) {
+        console.error('Bildirim tetikleme fonksiyonunda detaylı hata:', error);
+        res.status(500).json({ error: 'Bildirim gönderilemedi', details: error.message });
+    }
+});
+
+module.exports = router;
