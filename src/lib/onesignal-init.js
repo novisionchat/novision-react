@@ -1,18 +1,39 @@
-// --- DOSYA: src/lib/onesignal-init.js (KESİN VE NİHAİ MANTIKSAL AKIŞ) ---
+// --- DOSYA: src/lib/onesignal-init.js (HATA AYIKLAMA SÜRÜMÜ) ---
 
 import { getDatabase, ref, set } from "firebase/database";
 
-// Veritabanı fonksiyonumuz doğru, olduğu gibi kalıyor.
+// Fonksiyonu daha detaylı loglama yapacak şekilde güncelliyoruz
 const savePlayerIdToDatabase = (userId, playerId) => {
-  if (!userId || !playerId) return;
+  console.log("--- savePlayerIdToDatabase fonksiyonu tetiklendi ---");
+
+  if (!userId || !playerId) {
+    console.error("HATA: userId veya playerId EKSİK! Yazma işlemi yapılamadı.", { userId, playerId });
+    return;
+  }
+
+  console.log(`Firebase'e yazma hazırlığı yapılıyor...`);
+  console.log(` -> Hedef Yol: users/${userId}/playerIds/${playerId}`);
+  console.log(` -> Gönderilen Değer: true`);
+
   const db = getDatabase();
   const playerIdRef = ref(db, `users/${userId}/playerIds/${playerId}`);
+
   set(playerIdRef, true)
-    .then(() => console.log('OneSignal Player ID başarıyla kaydedildi:', playerId))
-    .catch((error) => console.error('OneSignal Player ID kaydedilirken hata oluştu:', error));
+    .then(() => {
+      // Bu mesajı görüyorsanız, işlem BAŞARILI olmuştur.
+      console.log(`✅ BAŞARIYLA YAZILDI! Player ID (${playerId}) veritabanına eklendi.`);
+    })
+    .catch((error) => {
+      // Bu mesajı görüyorsanız, Firebase yazma iznini REDDETMİŞTİR veya başka bir hata vardır.
+      console.error("❌ HATA YAKALANDI! Firebase'e yazma işlemi BAŞARISIZ OLDU.");
+      console.error(" -> Alınan Hata Kodu:", error.code);
+      console.error(" -> Hata Mesajı:", error.message);
+      console.error(" -> Tüm Hata Objesi:", error);
+    });
 };
 
-// --- ANA FONKSİYONUN EN SAĞLAM VE EN DOĞRU HALİ ---
+
+// Bu fonksiyonda değişiklik yok, olduğu gibi kalıyor
 export const initializeOneSignal = (userId) => {
   if (!userId) return;
 
@@ -20,7 +41,6 @@ export const initializeOneSignal = (userId) => {
   const OneSignal = window.OneSignal;
 
   OneSignal.push(async function() {
-    // Adım 1: SDK'yı başlat.
     await OneSignal.init({
       appId: import.meta.env.VITE_ONESIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true,
@@ -28,10 +48,8 @@ export const initializeOneSignal = (userId) => {
     
     console.log("OneSignal SDK başarıyla başlatıldı.");
 
-    // Adım 2: ÖNCE dinleyiciyi kur. Bu, hiçbir değişikliği kaçırmamamızı garanti eder.
     OneSignal.User.PushSubscription.addEventListener('change', function(change) {
         console.log("Abonelik durumu değişti:", change);
-        // Sadece yeni abonelik durumunda ID'yi alıp kaydediyoruz.
         if (change.current.isSubscribed) {
             const playerId = change.current.id;
             if (playerId) {
@@ -41,24 +59,18 @@ export const initializeOneSignal = (userId) => {
         }
     });
 
-    // Adım 3: Dinleyici hazır olduğuna göre, ŞİMDİ mevcut durumu kontrol et.
     const isSubscribed = OneSignal.User.PushSubscription.isSubscribed;
     if (isSubscribed) {
-        // Kullanıcı zaten aboneymiş, ID'sini alıp kaydedelim.
         const playerId = OneSignal.User.PushSubscription.id;
         if (playerId) {
             console.log("Kullanıcı zaten abone. Player ID:", playerId);
             savePlayerIdToDatabase(userId, playerId);
         }
     } else {
-        // Kullanıcı abone değilse, izin penceresini göster.
-        // Kullanıcı "İzin Ver"e tıkladığında, yukarıdaki 'change' dinleyicisi bunu yakalayacak.
         console.log("Kullanıcı abone değil, izin isteniyor...");
         OneSignal.Slidedown.promptPush();
     }
   });
 };
 
-export const cleanupOneSignal = () => {
-  // Bu fonksiyon şimdilik boş kalabilir.
-};
+export const cleanupOneSignal = () => {};
