@@ -1,0 +1,67 @@
+/* --- DOSYA: src/components/VoiceConnectionStatus.module.css (YENİ) --- */
+
+.statusContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: var(--ui-bg-dark); /* Panelin arka planından biraz daha koyu */
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.connectionInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.statusText, .statusTextLoading {
+    font-size: 0.8em;
+    font-weight: bold;
+    color: #43b581; /* Yeşil renk */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.statusTextLoading {
+    color: var(--text-secondary);
+}
+
+.channelName {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.controlBtn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.controlBtn:hover {
+    background-color: var(--ui-bg-light);
+    color: var(--text-primary);
+}
+
+.controlBtn.danger {
+    color: var(--danger-color);
+}
+
+.controlBtn.danger:hover {
+    background-color: rgba(229, 57, 53, 0.1);
+}

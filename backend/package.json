@@ -11,6 +11,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "firebase-admin": "^13.6.0",
     "link-preview-js": "^3.1.0",
     "node-fetch": "^2.7.0"
   }

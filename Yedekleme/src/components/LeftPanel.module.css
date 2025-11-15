@@ -1,4 +1,5 @@
 /* src/components/LeftPanel.module.css */
+
 .leftPanel {
     width: 360px;
     background-color: var(--panel-bg);
@@ -7,6 +8,15 @@
     border-right: 1px solid var(--border-color);
     flex-shrink: 0;
     transition: margin-left 0.3s ease-in-out;
+    height: 100vh; /* YENİ: Panelin tüm ekran yüksekliğini kaplamasını sağlar */
+}
+
+/* YENİ: Ana içeriği ve durum çubuğunu ayırmak için sarmalayıcı */
+.panelMainContent {
+    flex-grow: 1; /* Mevcut alanı kapla (durum çubuğu hariç) */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Bu sarmalayıcının kendisinin kaymasını engeller */
 }
 
 .panelHeader { 

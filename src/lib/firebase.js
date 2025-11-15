@@ -2,7 +2,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getDatabase } from "firebase/database";
+import { getDatabase, ref, onValue } from "firebase/database"; // ref ve onValue import edildi
 
 // Orijinal projenizdeki yapılandırma bilgileri
 const firebaseConfig = {
@@ -21,16 +21,12 @@ const app = initializeApp(firebaseConfig);
 // Diğer modüllerin kullanabilmesi için kimlik doğrulama ve veritabanı servislerini export et
 export const auth = getAuth(app);
 export const db = getDatabase(app);
+export { app }; // <-- YENİ EKLENDİ: Messaging servisi için 'app' objesini export ediyoruz
 
-// --- YENİ HATA AYIKLAMA LOGLARI ---
+// --- HATA AYIKLAMA LOGLARI ---
 console.log("Firebase SDK başarıyla başlatıldı.");
-console.log("Firebase App:", app);
-console.log("Firebase Auth:", auth);
-console.log("Firebase Database:", db);
 
 // Veritabanı bağlantısını test etmek için basit bir okuma işlemi
-// Bu, Firebase kurallarınızın en üst seviyesinde okuma izni gerektirebilir.
-// Eğer '.read': 'auth != null' ise, oturum açmış kullanıcılar için çalışır.
 try {
   const testRef = ref(db, '.info/connected');
   onValue(testRef, (snapshot) => {

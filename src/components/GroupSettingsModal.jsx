@@ -4,11 +4,11 @@ import styles from './GroupSettingsModal.module.css';
 import { db } from '../lib/firebase';
 import { ref, onValue, get } from 'firebase/database';
 import { IoClose, IoTrash } from 'react-icons/io5';
+import { FaBell, FaBellSlash } from 'react-icons/fa'; // YENİ: İkonlar eklendi
 import * as groupMgmt from '../lib/groupManagement';
 import { uploadToCloudinary } from '../lib/cloudinary';
 
-// Üye listesindeki her bir eleman için ayrı bileşen
-// Bu bileşenin TAM ve EKSİKSİZ halidir.
+// Üye listesindeki her bir eleman için ayrı bileşen (Tam Hali)
 const MemberItem = ({ member, role, isCreator, groupId }) => {
     const handlePromote = () => groupMgmt.setMemberRole(groupId, member.uid, 'admin').catch(alert);
     const handleDemote = () => groupMgmt.setMemberRole(groupId, member.uid, 'member').catch(alert);
@@ -20,7 +20,7 @@ const MemberItem = ({ member, role, isCreator, groupId }) => {
 
     return (
         <li className={styles.memberItem}>
-            <img src={member.avatar} alt={member.username} />
+            <img src={member.avatar || '/assets/icon.png'} alt={member.username} />
             <div className={styles.memberInfo}>
                 <span className={styles.memberName}>{member.username}#{member.tag}</span>
                 <span className={styles.memberRole}>{role}</span>
@@ -41,7 +41,7 @@ const MemberItem = ({ member, role, isCreator, groupId }) => {
 };
 
 
-// Ana Modal Bileşeni
+// Ana Modal Bileşeni (Tam Hali)
 function GroupSettingsModal({ isOpen, onClose, group, currentUser }) {
     const [groupData, setGroupData] = useState(null);
     const [membersInfo, setMembersInfo] = useState([]);
@@ -57,14 +57,20 @@ function GroupSettingsModal({ isOpen, onClose, group, currentUser }) {
     const [newMemberTag, setNewMemberTag] = useState("");
     const [searchedUser, setSearchedUser] = useState(null);
 
+    // YENİ STATE: Bildirim ayarlarını tutmak için
+    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
     // Yetki kontrolü
     const currentUserRole = groupData?.meta.members[currentUser.uid];
     const canManage = currentUserRole === 'creator' || currentUserRole === 'admin';
     
     useEffect(() => {
         if (!isOpen || !group?.id) {
-            setGroupData(null); setNewAvatarFile(null); setIsLoading(true);
-            setSearchedUser(null); setNewMemberTag("");
+            setGroupData(null); 
+            setNewAvatarFile(null); 
+            setIsLoading(true);
+            setSearchedUser(null); 
+            setNewMemberTag("");
             return;
         }
         
@@ -78,6 +84,15 @@ function GroupSettingsModal({ isOpen, onClose, group, currentUser }) {
                 if (!newAvatarFile) {
                     setPreviewAvatar(data.meta.avatar);
                 }
+
+                // YENİ EKLENEN BÖLÜM: Kullanıcının bu grup için bildirim ayarını çek
+                const userGroupSettingsRef = ref(db, `users/${currentUser.uid}/groups/${group.id}/notificationsEnabled`);
+                get(userGroupSettingsRef).then(snap => {
+                    // Eğer veritabanında ayar hiç yapılmamışsa (null/undefined), varsayılan olarak açık (true) kabul ediyoruz.
+                    // Eğer false olarak ayarlanmışsa, kapalı (false) kabul ediyoruz.
+                    setNotificationsEnabled(snap.exists() ? snap.val() : true);
+                });
+                // --- YENİ BÖLÜM SONU ---
                 
                 const memberUids = Object.keys(data.meta.members);
                 const memberPromises = memberUids.map(uid => get(ref(db, `userSearchIndex/${uid}`)));
@@ -91,7 +106,7 @@ function GroupSettingsModal({ isOpen, onClose, group, currentUser }) {
             }
         });
         return () => unsubscribe();
-    }, [isOpen, group?.id, newAvatarFile]); // newAvatarFile'ı bağımlılıklara ekledik.
+    }, [isOpen, group?.id, newAvatarFile, currentUser.uid]); // currentUser.uid bağımlılıklara eklendi
     
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
@@ -150,10 +165,21 @@ function GroupSettingsModal({ isOpen, onClose, group, currentUser }) {
         if (confirm("Gruptan ayrılmak istediğinizden emin misiniz? Bu işlem geri alınamaz.")) {
             try {
                 await groupMgmt.leaveGroup(group.id, currentUser.uid);
-                onClose(); // Başarılı olursa modal'ı kapat
+                onClose();
             } catch (error) {
                 alert(error.message);
             }
+        }
+    };
+    
+    // YENİ FONKSİYON: Bildirim ayarını değiştirmek için
+    const handleToggleNotifications = async () => {
+        try {
+            const newPreference = !notificationsEnabled;
+            await groupMgmt.setGroupNotificationPreference(currentUser.uid, group.id, newPreference);
+            setNotificationsEnabled(newPreference); // UI'ı anında güncelle
+        } catch (error) {
+            alert("Bildirim ayarı değiştirilemedi: " + error.message);
         }
     };
 
@@ -219,6 +245,19 @@ function GroupSettingsModal({ isOpen, onClose, group, currentUser }) {
                                 )}
                             </div>
                         )}
+                        
+                        {/* YENİ EKLENEN BÖLÜM: BİLDİRİM AYARLARI */}
+                        <div className={styles.section}>
+                            <h4>BİLDİRİMLER</h4>
+                            <button 
+                                onClick={handleToggleNotifications} 
+                                className={styles.actionButton} 
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px' }}
+                            >
+                                {notificationsEnabled ? <FaBellSlash/> : <FaBell/>}
+                                {notificationsEnabled ? 'Bu Gruptan Bildirimleri Kapat' : 'Bu Gruptan Bildirimleri Aç'}
+                            </button>
+                        </div>
                         
                         {/* Gruptan Ayrılma Butonu */}
                         <button onClick={handleLeaveGroup} className={`${styles.primaryBtn} ${styles.dangerButton}`}>

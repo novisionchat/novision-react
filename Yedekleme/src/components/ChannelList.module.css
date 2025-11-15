@@ -1,11 +1,10 @@
-/* src/components/ChannelList.module.css */
+/* --- DOSYA: src/components/ChannelList.module.css (GÜNCELLENMİŞ HALİ) --- */
 .channelListContainer {
     padding: 15px;
     flex-grow: 1;
     overflow-y: auto;
 }
 
-/* YENİ: Başlık ve butonu yan yana getirmek için */
 .channelListHeader {
     display: flex;
     justify-content: space-between;
@@ -14,7 +13,6 @@
     margin-bottom: 10px;
 }
 
-/* GÜNCELLEME: h4'ten gereksiz alt boşluk kaldırıldı */
 .channelListContainer h4 {
     font-size: 0.8em;
     font-weight: bold;
@@ -23,7 +21,6 @@
     margin: 0;
 }
 
-/* YENİ: Kanal ekleme butonu stili */
 .addChannelBtn {
     background: none;
     border: none;
@@ -74,4 +71,42 @@
     background-color: var(--other-message-bg);
     color: var(--text-primary);
     font-weight: 500;
+}
+
+/* --- YENİ EKLENEN STİLLER --- */
+.voiceHeader {
+    margin-top: 25px;
+}
+
+.voiceChannelItem {
+    display: flex;
+    flex-direction: column;
+}
+
+.channelButton.activeVoice {
+    color: var(--accent-color);
+}
+
+.voiceMemberList {
+    list-style: none;
+    padding-left: 30px; /* İkon hizasından başlatmak için */
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.voiceMember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.voiceMember img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
 }

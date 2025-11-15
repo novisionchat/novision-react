@@ -1,4 +1,4 @@
-// --- DOSYA: src/lib/chat.js ---
+// --- DOSYA: src/lib/chat.js (GÜNCELLENMİŞ HALİ) ---
 import { db } from './firebase.js';
 import { 
     ref, 
@@ -71,14 +71,31 @@ export async function sendMessage(chatId, chatType, sender, payload, replyTo = n
         ...payload
     };
 
-    // Mesaj bir yanıtsa, yanıt bilgilerini ekle
+    // --- BAŞLANGIÇ: GÜNCELLENEN BÖLÜM ---
+    // Mesaj bir yanıtsa, yanıt bilgilerini doğru bir şekilde ekle
     if (replyTo) {
+        // Yanıtlanan içeriğin türüne göre bir önizleme metni oluştur
+        let replyPreviewText = 'Bir mesaja yanıt veriliyor...';
+        if (replyTo.text) {
+            replyPreviewText = replyTo.text;
+        } else if (replyTo.type === 'media') {
+            switch (replyTo.mediaType) {
+                case 'image': replyPreviewText = '🖼️ Resim'; break;
+                case 'video': replyPreviewText = '🎬 Video'; break;
+                case 'audio': replyPreviewText = '🎤 Sesli Mesaj'; break;
+                default: replyPreviewText = '📎 Dosya'; break;
+            }
+        } else if (replyTo.type === 'gif') {
+            replyPreviewText = '🎞️ GIF';
+        }
+        
         newMessage.replyTo = {
             messageId: replyTo.id,
             senderName: replyTo.senderName,
-            text: replyTo.text,
+            text: replyPreviewText, // Oluşturulan önizleme metnini kullan
         };
     }
+    // --- BİTİŞ: GÜNCELLENEN BÖLÜM ---
 
     // 1. Yeni mesajı veritabanına kaydet
     await push(messagesRef, newMessage);
