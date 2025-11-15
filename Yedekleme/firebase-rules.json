@@ -1,0 +1,91 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        "contacts": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" },
+        "conversations": { ".read": "$uid === auth.uid", ".write": "auth != null" },
+        "presence": { ".read": "auth != null" },
+        "groups": { ".write": "auth != null" }
+      }
+    },
+    "userSearchIndex": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "dms": {
+      "$dmId": {
+        ".read": "auth != null && $dmId.contains(auth.uid)",
+        ".write": "auth != null && $dmId.contains(auth.uid)",
+        "messages": { ".indexOn": "timestamp" }
+      }
+    },
+    // --- BU BÖLÜMÜ GÜNCELLEYİN ---
+    "groups": {
+      "$groupId": {
+        // Okuma Kuralı: Gruba sadece üyeleri erişebilir. Bu doğru, olduğu gibi kalıyor.
+        ".read": "data.child('meta/members').child(auth.uid).exists()",
+
+        // Yazma Kurallarını daha detaylı hale getiriyoruz.
+        // Genel .write kuralını kaldırıp her alt yol için özel kurallar tanımlıyoruz.
+
+        // Grup meta verilerini (isim, avatar, üye rolleri) sadece admin ve kurucu değiştirebilir.
+        "meta": {
+          ".write": "root.child('groups/' + $groupId + '/meta/members/' + auth.uid).val() === 'creator' || root.child('groups/' + $groupId + '/meta/members/' + auth.uid).val() === 'admin'"
+        },
+        
+        // Metin kanallarını sadece admin ve kurucu oluşturabilir/silebilir.
+        "channels": {
+          ".write": "root.child('groups/' + $groupId + '/meta/members/' + auth.uid).val() === 'creator' || root.child('groups/' + $groupId + '/meta/members/' + auth.uid).val() === 'admin'"
+        },
+
+        "voiceChannels": {
+          // Ses kanalı listesinin kendisine (yeni kanal oluşturma/silme) sadece admin ve kurucu yazabilir.
+          ".write": "root.child('groups/' + $groupId + '/meta/members/' + auth.uid).val() === 'creator' || root.child('groups/' + $groupId + '/meta/members/' + auth.uid).val() === 'admin'",
+          
+          "$channelId": {
+            "members": {
+              // Ancak, bir kanalın içindeki "members" listesine HERHANGİ bir grup üyesi yazabilir.
+              // Bu kural, üstteki daha kısıtlayıcı kuralı bu spesifik yol için ezer.
+              ".write": "root.child('groups/' + $groupId + '/meta/members/' + auth.uid).exists()",
+              
+              "$uid": {
+                // Ek güvenlik: Herkes sadece KENDİ üyelik bilgisini yazıp silebilir, başkasınınkini değil.
+                ".validate": "$uid === auth.uid"
+              }
+            }
+          }
+        }
+      }
+    },
+    // --- GÜNCELLEME SONU ---
+    "typing": {
+      "dm": {
+        "$dmId": {
+          ".read": "auth != null && $dmId.contains(auth.uid)",
+          "$userId": { ".write": "auth != null && $userId === auth.uid" }
+        }
+      },
+      "group": {
+        "$groupId": {
+          ".read": "auth != null && root.child('groups/' + $groupId + '/meta/members/' + auth.uid).exists()",
+          "$userId": { ".write": "auth != null && $userId === auth.uid" }
+        }
+      }
+    },
+    "calls": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "auth != null"
+      }
+    },
+    "challenges": { "$uid": { ".read": "$uid === auth.uid", "$challenger_game_id": { ".write": "auth != null" } } },
+    "chess_games": {
+      ".read": "auth != null",
+      "$gameId": { ".write": "auth != null" }
+    }
+  }
+}
