@@ -29,7 +29,7 @@ export const initializeOneSignal = async (userId) => {
   // ÖNEMLİ DEĞİŞİKLİK: 'react-onesignal' kütüphanesi tarafından oluşturulan
   // global `window.OneSignal` nesnesinin hazır olmasını bekliyoruz.
   await OneSignal.init({ 
-      appId: import.meta.env.VITE_ONESIONAL_APP_ID,
+      appId: import.meta.env.VITE_ONESIGNAL_APP_ID,
       allowLocalhostAsSecureOrigin: true
   });
   
