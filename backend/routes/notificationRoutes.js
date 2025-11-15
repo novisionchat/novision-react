@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin');
 
-// --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu ---
+// YENİ VE DOĞRU YÖNTEM: Messaging servisini kendi paketinden import ediyoruz.
+const { getMessaging } = require('firebase-admin/messaging');
+
+// --- BAŞLANGIÇ: Firebase Admin SDK Kurulumu (Bu kısım aynı kalıyor) ---
 try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
         const serviceAccount_b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
@@ -34,7 +37,7 @@ router.post('/trigger', async (req, res) => {
         const db = admin.database();
         let recipientIds = [];
 
-        // 1. Adım: Alıcıları Belirle
+        // Adım 1: Alıcıları Belirle (Bu mantık aynı kalıyor)
         if (chatType === 'dm') {
             const otherUserId = chatId.replace(sender.uid, '').replace('_', '');
             recipientIds.push(otherUserId);
@@ -64,7 +67,7 @@ router.post('/trigger', async (req, res) => {
 
         let sentCount = 0;
 
-        // 2. Adım: Her alıcı için kontrolleri yap ve bildirimi gönder
+        // Adım 2: Her alıcı için kontrolleri yap (Bu mantık aynı kalıyor)
         for (const recipientId of recipientIds) {
             const presenceRef = db.ref(`users/${recipientId}/presence`);
             const presenceSnap = await presenceRef.once('value');
@@ -83,21 +86,20 @@ router.post('/trigger', async (req, res) => {
                 continue;
             }
 
-            // 3. Adım: Kullanıcının FCM token'larını al
+            // Adım 3: Kullanıcının token'larını al ve bildirimi gönder
             const tokensSnapshot = await db.ref(`users/${recipientId}/fcmTokens`).once('value');
             if (tokensSnapshot.exists()) {
                 const tokens = Object.keys(tokensSnapshot.val());
                 if (tokens.length > 0) {
                     
-                    // --- BAŞLANGIÇ: HATA DÜZELTMESİ ---
-                    // 'sendToDevice' yerine 'sendMulticast' kullanıyoruz.
-                    // 'sendMulticast' bir obje bekler ve bu objenin içinde 'tokens' anahtarı olmalıdır.
-                    const response = await admin.messaging().sendMulticast({
-                        tokens: tokens, // Token dizisi burada
+                    // --- BAŞLANGIÇ: FİNAL DÜZELTME ---
+                    // 'admin.messaging().sendMulticast' yerine doğrudan 'getMessaging().sendMulticast' kullanıyoruz.
+                    const response = await getMessaging().sendMulticast({
+                        tokens: tokens,
                         notification: notificationPayload.notification,
                         webpush: notificationPayload.webpush,
                     });
-                    // --- BİTİŞ: HATA DÜZELTMESİ ---
+                    // --- BİTİŞ: FİNAL DÜZELTME ---
 
                     sentCount += response.successCount;
                     
@@ -109,7 +111,6 @@ router.post('/trigger', async (req, res) => {
                             }
                         });
                         console.log('Hatalı token listesi:', failedTokens);
-                        // Burada isterseniz hatalı token'ları veritabanından silebilirsiniz.
                     }
                 }
             }
