@@ -11,12 +11,12 @@
         "groups": { ".write": "auth != null" },
 
         // --- BU BÖLÜM EKLENDİ ---
-        // Kullanıcının kendi 'playerIds' listesine yazmasına izin verir.
-        // Sorununuzu çözen kritik kural budur.
+        // OneSignal'dan gelen Player ID'lerini kullanıcının kendi
+        // profiline yazabilmesi için gerekli izin.
         "playerIds": {
           ".write": "$uid === auth.uid"
         }
-        // --- GÜNCELLEME SONU ---
+        // --- EKLEME SONU ---
       }
     },
     "userSearchIndex": {
@@ -29,7 +29,19 @@
       "$dmId": {
         ".read": "auth != null && $dmId.contains(auth.uid)",
         ".write": "auth != null && $dmId.contains(auth.uid)",
-        "messages": { ".indexOn": "timestamp" }
+        
+        // --- BU BÖLÜM GÜNCELLENDİ/EKLENDİ ---
+        // Bu kural, sohbete dahil olan bir kullanıcının,
+        // sohbetteki belirli bir mesaj üzerinde yazma (güncelleme)
+        // yetkisine sahip olduğunu açıkça belirtir. "Görüldü"
+        // bilgisinin güncellenmesini sağlayan kritik kural budur.
+        "messages": { 
+          ".indexOn": "timestamp",
+          "$messageId": {
+            ".write": "auth != null && $dmId.contains(auth.uid)"
+          }
+        }
+        // --- GÜNCELLEME SONU ---
       }
     },
     "groups": {
